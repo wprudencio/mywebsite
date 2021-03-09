@@ -7,14 +7,47 @@ body {
   padding: 30px;
 }
 
+a {
+  color: #ffff;
+}
+
+.social-links {
+  padding-top: 17px;
+}
+
 .subcolor {
-  color: #fff;
+  color: #ff7a7a;
 }
 
 .header {
   display: flex;
   flex-direction: row;
   margin: auto;
+}
+
+.code > div {
+  display: flex;
+}
+
+.code-content {
+  /* border: 1px solid; */
+  max-width: 23.8%;
+}
+
+.code-content > * {
+  margin: 10px;
+}
+
+.code-content .title {
+  font-size: 20px;
+}
+
+.code-content .subtitle {
+  color: #62ffa1;
+}
+
+.code-content .description {
+  color: #ffff;
 }
 
 .header .titles {
