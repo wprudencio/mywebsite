@@ -17,6 +17,9 @@ a {
   padding-top: 17px;
 }
 
+.subcolor {
+}
+
 .header {
   display: flex;
   flex-direction: row;

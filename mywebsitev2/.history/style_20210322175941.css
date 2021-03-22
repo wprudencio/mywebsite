@@ -6,15 +6,17 @@ body {
   margin: 0 auto;
   padding: 30px;
 }
-section {
-  margin-top: 50px;
-}
+
 a {
   color: #ffff;
 }
 
 .social-links {
   padding-top: 17px;
+}
+
+.subcolor {
+  color: #ff7a7a;
 }
 
 .header {
@@ -30,19 +32,15 @@ a {
 .code-content {
   /* border: 1px solid; */
   max-width: 23.8%;
-  padding-left: 1%;
 }
 
 .code-content > * {
   margin: 10px;
 }
 
-.code-content > img {
-  width: 100%;
-}
-
 .code-content .title {
   font-size: 20px;
+  color: #ff7a7a;
 }
 
 .code-content .subtitle {
@@ -84,16 +82,13 @@ section.music iframe {
 section.music iframe:not(:last-child) {
   padding-right: 1%;
 }
-footer {
-  margin-top: 40px;
-}
 
 @media only screen and (min-width: 1077px) {
 }
 
 @media only screen and (max-width: 800px) {
   .hide-on-mobile {
-    display: none !important;
+    display: none;
   }
 
   .profile-picture > img {

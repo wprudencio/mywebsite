@@ -17,6 +17,10 @@ a {
   padding-top: 17px;
 }
 
+.subcolor {
+  color: #fff;
+}
+
 .header {
   display: flex;
   flex-direction: row;
@@ -30,7 +34,7 @@ a {
 .code-content {
   /* border: 1px solid; */
   max-width: 23.8%;
-  padding-left: 1%;
+  padding-left: 2%;
 }
 
 .code-content > * {
@@ -84,16 +88,13 @@ section.music iframe {
 section.music iframe:not(:last-child) {
   padding-right: 1%;
 }
-footer {
-  margin-top: 40px;
-}
 
 @media only screen and (min-width: 1077px) {
 }
 
 @media only screen and (max-width: 800px) {
   .hide-on-mobile {
-    display: none !important;
+    display: none;
   }
 
   .profile-picture > img {

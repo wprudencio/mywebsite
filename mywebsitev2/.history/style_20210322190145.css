@@ -17,6 +17,10 @@ a {
   padding-top: 17px;
 }
 
+.subcolor {
+  color: #fff;
+}
+
 .header {
   display: flex;
   flex-direction: row;

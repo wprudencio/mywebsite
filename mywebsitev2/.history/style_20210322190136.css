@@ -17,6 +17,10 @@ a {
   padding-top: 17px;
 }
 
+.subcolor {
+  color: #fff;
+}
+
 .header {
   display: flex;
   flex-direction: row;
@@ -85,7 +89,7 @@ section.music iframe:not(:last-child) {
   padding-right: 1%;
 }
 footer {
-  margin-top: 40px;
+  margin-top: 50px;
 }
 
 @media only screen and (min-width: 1077px) {
