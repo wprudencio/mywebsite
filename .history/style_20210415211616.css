@@ -27,13 +27,17 @@ a {
   display: flex;
 }
 
-.code-content {
+.code-content:not(:first-child) {
   /* border: 1px solid; */
   max-width: 23.8%;
   padding-left: 1%;
 }
 
-.code-content > * {
+.code-content :not(:first-child) {
+  margin: 10px;
+}
+
+.code-content :first-child {
   margin: 10px;
 }
 

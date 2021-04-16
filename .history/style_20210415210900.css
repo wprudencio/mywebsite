@@ -27,7 +27,7 @@ a {
   display: flex;
 }
 
-.code-content {
+.code-content:not(:first-child) {
   /* border: 1px solid; */
   max-width: 23.8%;
   padding-left: 1%;

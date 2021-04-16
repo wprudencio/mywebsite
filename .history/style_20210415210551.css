@@ -34,7 +34,7 @@ a {
 }
 
 .code-content > * {
-  margin: 10px;
+  /* margin: 10px; */
 }
 
 .code-content > img {
@@ -68,7 +68,6 @@ a {
 
 section.photo img {
   width: 23.8%;
-
   margin: auto;
 }
 
