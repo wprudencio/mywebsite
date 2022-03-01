@@ -1,0 +1,23 @@
+{
+  "name": "mywebsite",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "parcel src/index.html",
+    "build": "parcel build src/index.html --out-dir doc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wprudencio/mywebsite.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/wprudencio/mywebsite/issues"
+  },
+  "homepage": "https://github.com/wprudencio/mywebsite#readme",
+  "devDependencies": {
+    "parcel-bundler": "^1.12.5"
+  }
+}
