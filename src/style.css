@@ -1,26 +1,29 @@
 body {
-  background-color: #242421;
-  font-family: "Quicksand", sans-serif;
-  color: #ff7a7a;
+  background-color: #202125;
+  font-family: "Roboto condensed", sans-serif;
+  color: #faffff;
   max-width: 1400px;
   margin: 0 auto;
+  font-size: 25px;
   padding: 30px;
 }
 section {
   margin-top: 50px;
 }
-a {
-  color: #ffff;
-}
 
 .social-links {
   padding-top: 17px;
+}
+a {
+  color: #62ffa1;
+  text-decoration: none;
 }
 
 .header {
   display: flex;
   flex-direction: row;
   margin: auto;
+  padding-top: 25px;
 }
 
 .code > div {
@@ -53,16 +56,22 @@ a {
 }
 
 .header .titles {
-  margin: auto 0;
+  /* margin: auto 0; */
 }
 
 .header .subtile {
   margin-right: 50px;
 }
+.profile-picture {
+  display: flex;
+  justify-content: center;
+  width: 30%;
+}
 
 .profile-picture > img {
   width: 256px;
   margin: auto;
+  
 }
 
 section.photo img {
