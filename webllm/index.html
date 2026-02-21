@@ -1155,7 +1155,7 @@
       <div class="panel-section">
         <div class="section-label">System Prompt</div>
         <textarea class="sys-prompt" id="sysPrompt"
-          rows="4">You are a helpful AI assistant running locally in your browser. Be concise and precise.</textarea>
+          rows="4">You are a helpful AI assistant running locally in your browser. Be concise and precise. When the user's request can be answered using an available tool or function, you must use it.</textarea>
       </div>
 
       <div class="panel-section">
@@ -1571,12 +1571,19 @@
       let fullSysPrompt = sysPrompt;
       const tools = window.registeredTools.map(t => t.schema);
       if (tools.length > 0) {
-        const toolDescriptions = tools.map(t => {
-          const f = t.function;
-          return `- ${f.name}: ${f.description || 'No description'}\n  Parameters: ${JSON.stringify(f.parameters || {})}`;
-        }).join('\n');
+        const toolDefs = tools.map(t => JSON.stringify(t, null, 2)).join(',\n');
 
-        fullSysPrompt += `\n\nYou have access to the following tools:\n${toolDescriptions}\n\nWhen you need to use a tool, you MUST respond ONLY with a JSON code block in this exact format:\n\`\`\`json\n{"name": "function_name", "arguments": {"param": "value"}}\n\`\`\`\nDo not add any text before or after the JSON block when calling a tool. After receiving the tool result, provide a natural language response to the user.`;
+        // Build a concrete example using the first tool
+        const firstFn = tools[0].function;
+        const exampleArgs = {};
+        if (firstFn.parameters && firstFn.parameters.properties) {
+          for (const [key, val] of Object.entries(firstFn.parameters.properties)) {
+            exampleArgs[key] = val.type === 'number' ? 0 : val.type === 'boolean' ? true : '...';
+          }
+        }
+        const exampleCall = JSON.stringify({ name: firstFn.name, arguments: exampleArgs });
+
+        fullSysPrompt += `\n\nYou have access to the following tools:\n${toolDefs}\n\nWhen the user's request requires using a tool, respond ONLY with a JSON object (no explanation, no markdown) like this:\n${exampleCall}\n\nReplace the argument values with the actual values from the user's request. Only call tools that are listed above. After receiving the tool result, interpret it and respond to the user in natural language.`;
       }
 
       const msgArray = fullSysPrompt
@@ -1915,6 +1922,29 @@
         }
       }
 
+      // Pattern 4: Raw JSON object in output (no wrappers) — for models instructed via system prompt
+      if (calls.length === 0) {
+        // Try to find any JSON object with "name" in the text
+        const jsonRegex = /\{[^{}]*"name"\s*:\s*"([^"]+)"[^{}]*"arguments"\s*:\s*(\{[^{}]*\})[^{}]*\}/g;
+        while ((match = jsonRegex.exec(rawText)) !== null) {
+          try {
+            const parsed = JSON.parse(match[0]);
+            if (parsed.name) {
+              // Validate it's actually one of our registered tools
+              const isRegistered = window.registeredTools.some(t => t.schema.function.name === parsed.name);
+              if (isRegistered) {
+                calls.push({
+                  function: {
+                    name: parsed.name,
+                    arguments: parsed.arguments || parsed.parameters || {}
+                  }
+                });
+              }
+            }
+          } catch (e) { /* ignore */ }
+        }
+      }
+
       return calls;
     }
 
@@ -1934,7 +1964,6 @@
   }
 }`;
       document.getElementById('toolCodeInput').value = `async ({ location }) => {
-  // Replace with a real API call
   return { location, temperature: "22°C", condition: "Sunny" };
 }`;
       document.getElementById('toolModal').classList.remove('hidden');
