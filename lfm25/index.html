@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LFM2.5 — Agent Interface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black: #000000;
+    --deep: #020202;
+    --charcoal: #303030;
+    --char2: #323131;
+    --mid: #545352;
+    --light: #737270;
+    --bg: #eeeeee;
+    --bg2: #f6f6f6;
+    --orange: #ea6626;
+    --soft: #e8ab8f;
+    --white: #ffffff;
+
+    --sp1: 8px; --sp2: 16px; --sp3: 24px; --sp4: 40px;
+    --font: 'DM Sans', system-ui, sans-serif;
+    --mono: 'Geist Mono', monospace;
+    --dur: 200ms;
+    --ease: cubic-bezier(0.25, 0, 0, 1);
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--charcoal);
+    font-family: var(--font);
+    font-weight: 400;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* TOPBAR */
+  .topbar {
+    height: 52px; flex-shrink: 0;
+    background: var(--deep);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 var(--sp4);
+    border-bottom: 1px solid #181818;
+    z-index: 50;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 20px; height: 20px;
+    border: 1.5px solid var(--orange);
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 2px; padding: 3px;
+  }
+  .brand-mark span { background: var(--orange); display: block; }
+  .brand-mark span:nth-child(2) { background: transparent; border: 1px solid var(--orange); }
+  .brand-name {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--bg); letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .topbar-center { display: flex; align-items: center; gap: 8px; }
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--light); transition: background var(--dur);
+  }
+  .status-dot.active {
+    background: var(--orange);
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .status-text {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--light); letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .topbar-right { display: flex; align-items: center; gap: var(--sp3); }
+  .live-badge {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--light); letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .live-badge span { color: var(--soft); }
+
+  /* SHELL */
+  .shell {
+    flex: 1; min-height: 0;
+    display: grid;
+    grid-template-columns: 256px 1fr 208px;
+    overflow: hidden;
+  }
+
+  /* PANEL LEFT */
+  .panel-left {
+    background: var(--bg2);
+    border-right: 1px solid #d8d8d8;
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .panel-section {
+    padding: var(--sp3);
+    border-bottom: 1px solid #e0e0e0;
+  }
+  .section-label {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--light); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: var(--sp2);
+  }
+  .model-select {
+    width: 100%; background: var(--white);
+    border: 1px solid #d4d4d4;
+    padding: 8px 28px 8px 10px;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--charcoal); outline: none; cursor: pointer;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23737270' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    margin-bottom: var(--sp2);
+  }
+  .model-select:focus { border-color: var(--charcoal); }
+  .load-btn {
+    width: 100%; background: var(--charcoal);
+    color: var(--bg); border: none; padding: 10px;
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; gap: 8px;
+    transition: background var(--dur) var(--ease);
+  }
+  .load-btn:hover { background: var(--black); }
+  .load-btn:disabled { background: var(--mid); cursor: not-allowed; }
+  .progress-wrap { margin-top: var(--sp2); display: flex; flex-direction: column; gap: 5px; }
+  .progress-wrap.hidden { display: none; }
+  .progress-track { height: 2px; background: #d8d8d8; }
+  .progress-fill { height: 100%; background: var(--orange); width: 0%; transition: width 250ms var(--ease); }
+  .progress-meta { display: flex; justify-content: space-between; }
+  .progress-label {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--light); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; max-width: 140px;
+  }
+  .progress-pct {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--orange); flex-shrink: 0;
+  }
+  .sys-prompt {
+    width: 100%; background: var(--white);
+    border: 1px solid #d4d4d4;
+    padding: 8px 10px;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--charcoal); resize: none; outline: none;
+    line-height: 1.55; min-height: 72px;
+    transition: border-color var(--dur);
+  }
+  .sys-prompt:focus { border-color: var(--charcoal); }
+  .slider-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: var(--sp2); }
+  .slider-row:last-child { margin-bottom: 0; }
+  .slider-label { display: flex; justify-content: space-between; align-items: baseline; }
+  .slider-name {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--light); letter-spacing: 0.07em; text-transform: uppercase;
+  }
+  .slider-val { font-family: var(--mono); font-size: 11px; color: var(--char2); font-weight: 500; }
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 2px;
+    background: linear-gradient(to right, var(--charcoal) var(--fill,0%), #d8d8d8 var(--fill,0%));
+    outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 10px; height: 10px;
+    background: var(--orange); cursor: pointer; border-radius: 0;
+  }
+  .spec-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 5px 0; border-bottom: 1px solid #ebebeb;
+  }
+  .spec-row:last-child { border-bottom: none; }
+  .spec-key { font-family: var(--mono); font-size: 9px; color: var(--light); letter-spacing: 0.05em; }
+  .spec-val { font-family: var(--mono); font-size: 11px; color: var(--char2); }
+  .spec-val.hl { color: var(--orange); }
+  .clear-btn {
+    width: 100%; background: transparent;
+    border: 1px solid #d4d4d4; color: var(--mid);
+    padding: 8px; font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+    transition: border-color var(--dur), color var(--dur);
+  }
+  .clear-btn:hover { border-color: var(--charcoal); color: var(--charcoal); }
+
+  /* PANEL CENTER */
+  .panel-center {
+    display: flex; flex-direction: column;
+    background: var(--bg);
+    border-right: 1px solid #d8d8d8;
+    min-height: 0;
+  }
+  .chat-header {
+    height: 44px; flex-shrink: 0;
+    border-bottom: 1px solid #d8d8d8;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 var(--sp3);
+  }
+  .chat-header-title {
+    font-size: 13px; font-weight: 500;
+    color: var(--charcoal); letter-spacing: -0.01em;
+  }
+  .chat-header-meta {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--light); letter-spacing: 0.05em;
+  }
+  /* Init overlay */
+  .init-overlay {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: var(--sp3); padding: var(--sp4);
+  }
+  .init-overlay.hidden { display: none; }
+  .init-glyph {
+    display: grid; grid-template-columns: repeat(4,16px);
+    gap: 3px; margin-bottom: var(--sp2);
+  }
+  .init-cell {
+    width: 16px; height: 16px; background: #e0e0e0;
+  }
+  .init-cell:nth-child(3n) { background: var(--charcoal); }
+  .init-cell:nth-child(7) { background: var(--orange); animation: cell-pulse 1.8s ease-in-out infinite; }
+  @keyframes cell-pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .init-title {
+    font-size: 26px; font-weight: 500; color: var(--charcoal);
+    letter-spacing: -0.02em; text-align: center; line-height: 1.2;
+  }
+  .init-sub {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--light); text-align: center; line-height: 1.7; letter-spacing: 0.02em;
+  }
+  /* Messages */
+  .messages {
+    flex: 1; overflow-y: auto; min-height: 0;
+    padding: var(--sp3) var(--sp4);
+    display: flex; flex-direction: column; gap: var(--sp3);
+  }
+  .messages.hidden { display: none; }
+  .messages::-webkit-scrollbar { width: 3px; }
+  .messages::-webkit-scrollbar-thumb { background: #ccc; }
+
+  .message {
+    display: flex; gap: var(--sp2);
+    animation: msg-in 180ms var(--ease);
+  }
+  @keyframes msg-in { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+  .message.user { flex-direction: row-reverse; }
+  .msg-avatar {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.05em;
+    color: var(--light); padding-top: 20px; flex-shrink: 0; width: 28px; text-align: center;
+  }
+  .message.user .msg-avatar { color: var(--orange); }
+  .msg-body { display: flex; flex-direction: column; gap: 3px; max-width: 78%; }
+  .message.user .msg-body { align-items: flex-end; }
+  .msg-header { display: flex; gap: 10px; align-items: baseline; }
+  .message.user .msg-header { flex-direction: row-reverse; }
+  .msg-name {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--light); letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .message.user .msg-name { color: var(--orange); }
+  .msg-time {
+    font-family: var(--mono); font-size: 9px; color: #bbb; letter-spacing: 0.03em;
+  }
+  .msg-content {
+    font-size: 14px; line-height: 1.65; color: var(--char2);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .message.user .msg-content {
+    background: var(--white); border: 1px solid #e0e0e0;
+    padding: 10px 14px; color: var(--charcoal);
+  }
+  .typing-cursor {
+    display: inline-block; width: 2px; height: 14px;
+    background: var(--orange); margin-left: 2px;
+    vertical-align: middle;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  /* Token bar */
+  .token-bar {
+    height: 34px; flex-shrink: 0;
+    border-top: 1px solid #d8d8d8; background: var(--bg2);
+    display: flex; align-items: center; padding: 0 var(--sp3); gap: var(--sp3);
+  }
+  .token-bar.hidden { display: none; }
+  .tbar-item { display: flex; align-items: baseline; gap: 5px; }
+  .tbar-key {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--light); letter-spacing: 0.07em; text-transform: uppercase;
+  }
+  .tbar-val { font-family: var(--mono); font-size: 11px; color: var(--char2); font-weight: 500; }
+  .tbar-val.active { color: var(--orange); }
+  .tbar-sep { width: 1px; height: 14px; background: #d4d4d4; }
+  /* Input */
+  .input-area {
+    border-top: 1px solid #d8d8d8; background: var(--bg2);
+    padding: var(--sp2) var(--sp3); flex-shrink: 0;
+  }
+  .input-area.hidden { display: none; }
+  .input-row { display: flex; gap: var(--sp2); align-items: flex-end; }
+  .user-input {
+    flex: 1; background: var(--white);
+    border: 1px solid #d4d4d4;
+    padding: 10px var(--sp2);
+    font-family: var(--font); font-size: 14px;
+    color: var(--charcoal); resize: none; outline: none;
+    line-height: 1.5; min-height: 42px; max-height: 140px;
+    overflow-y: auto; transition: border-color var(--dur);
+  }
+  .user-input::placeholder { color: #aaa; }
+  .user-input:focus { border-color: var(--charcoal); }
+  .send-btn {
+    background: var(--charcoal); color: var(--bg); border: none;
+    height: 42px; padding: 0 18px;
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: background var(--dur) var(--ease); white-space: nowrap; flex-shrink: 0;
+  }
+  .send-btn:hover { background: var(--black); }
+  .send-btn:disabled { background: var(--mid); cursor: not-allowed; }
+  .input-hint {
+    margin-top: 5px; font-family: var(--mono);
+    font-size: 9px; color: var(--light); letter-spacing: 0.04em;
+  }
+
+  /* PANEL RIGHT */
+  .panel-right {
+    background: var(--bg2);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .metric-block {
+    padding: var(--sp3); border-bottom: 1px solid #e0e0e0;
+    display: flex; flex-direction: column; gap: var(--sp2);
+  }
+  .metric-row { display: flex; flex-direction: column; gap: 4px; }
+  .metric-label { display: flex; justify-content: space-between; align-items: baseline; }
+  .metric-name {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--light); letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .metric-value { font-family: var(--mono); font-size: 12px; color: var(--char2); font-weight: 500; }
+  .metric-value.active { color: var(--orange); }
+  .bar-track { height: 2px; background: #d8d8d8; }
+  .bar-fill { height: 100%; background: var(--light); transition: width 500ms var(--ease); }
+  .bar-fill.hl { background: var(--orange); }
+  .log-wrap { padding: 0 var(--sp3) var(--sp3); flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .log-stream {
+    flex: 1; overflow-y: auto;
+    background: var(--white); border: 1px solid #e4e4e4;
+    padding: 8px; min-height: 100px; max-height: 220px;
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .log-stream::-webkit-scrollbar { width: 2px; }
+  .log-stream::-webkit-scrollbar-thumb { background: #ccc; }
+  .log-entry {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--light); line-height: 1.7; letter-spacing: 0.02em;
+    animation: log-in 150ms var(--ease);
+  }
+  @keyframes log-in { from{opacity:0;transform:translateX(-3px)} to{opacity:1;transform:none} }
+  .log-entry .ts { color: #c0c0c0; margin-right: 5px; }
+  .log-entry.ok { color: #7a9e7e; }
+  .log-entry.warn { color: var(--soft); }
+  .log-entry.hl { color: var(--orange); }
+
+  /* FOOTER */
+  .footer {
+    height: 48px; flex-shrink: 0;
+    background: var(--deep);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 var(--sp4);
+    border-top: 1px solid #111;
+  }
+  .footer-headline {
+    font-size: 13px; font-weight: 500; color: var(--bg);
+    letter-spacing: -0.01em; line-height: 1.15;
+  }
+  .footer-headline em { font-style: normal; color: var(--orange); }
+  .footer-viz { display: flex; align-items: center; gap: 12px; }
+  .footer-viz-label {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--light); letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .viz-bars { display: flex; gap: 2px; align-items: flex-end; height: 20px; }
+  .viz-bar { width: 4px; background: var(--charcoal); min-height: 2px; transition: height 350ms var(--ease), background 350ms; }
+  .viz-bar.hl { background: var(--orange); }
+
+  ::-webkit-scrollbar { width: 3px; height: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #ccc; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <span class="brand-name">LFM2.5 · Agent Interface</span>
+  </div>
+  <div class="topbar-center">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="status-text" id="statusText">Offline</span>
+  </div>
+  <div class="topbar-right">
+    <span class="live-badge">Speed: <span id="liveSpeed">—</span> tok/s</span>
+    <span class="live-badge">Model: <span id="liveModel">—</span></span>
+  </div>
+</header>
+
+<div class="shell">
+
+  <!-- LEFT -->
+  <aside class="panel-left">
+
+    <div class="panel-section">
+      <div class="section-label">Model</div>
+      <select class="model-select" id="modelSelect">
+        <option value="onnx-community/LFM2-1.2B-ONNX">LFM2-1.2B-Instruct</option>
+        <option value="onnx-community/LFM2-1.2B-ONNX">LFM2-1.2B (base)</option>
+      </select>
+      <button class="load-btn" id="loadBtn" onclick="loadModel()">
+        Load Model
+        <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" width="10" height="10">
+          <path d="M5 1v6M2 5l3 3 3-3"/>
+        </svg>
+      </button>
+      <div class="progress-wrap hidden" id="progressWrap">
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-meta">
+          <span class="progress-label" id="progressLabel">Initializing...</span>
+          <span class="progress-pct" id="progressPct">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">System Prompt</div>
+      <textarea class="sys-prompt" id="sysPrompt" rows="4">You are LFM2.5, a Liquid Foundation Model running locally in your browser. Be concise and precise.</textarea>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Parameters</div>
+      <div class="slider-row">
+        <div class="slider-label">
+          <span class="slider-name">Max Tokens</span>
+          <span class="slider-val" id="maxTokensVal">512</span>
+        </div>
+        <input type="range" id="maxTokens" min="64" max="2048" step="64" value="512"
+          oninput="document.getElementById('maxTokensVal').textContent=this.value; updateSlider(this)">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label">
+          <span class="slider-name">Temperature</span>
+          <span class="slider-val" id="temperatureVal">0.70</span>
+        </div>
+        <input type="range" id="temperature" min="0" max="2" step="0.05" value="0.7"
+          oninput="document.getElementById('temperatureVal').textContent=parseFloat(this.value).toFixed(2); updateSlider(this)">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label">
+          <span class="slider-name">Top-P</span>
+          <span class="slider-val" id="topPVal">0.90</span>
+        </div>
+        <input type="range" id="topP" min="0.1" max="1" step="0.05" value="0.9"
+          oninput="document.getElementById('topPVal').textContent=parseFloat(this.value).toFixed(2); updateSlider(this)">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label">
+          <span class="slider-name">Rep. Penalty</span>
+          <span class="slider-val" id="repPenaltyVal">1.10</span>
+        </div>
+        <input type="range" id="repPenalty" min="1" max="2" step="0.05" value="1.1"
+          oninput="document.getElementById('repPenaltyVal').textContent=parseFloat(this.value).toFixed(2); updateSlider(this)">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Architecture</div>
+      <div class="spec-row"><span class="spec-key">Type</span><span class="spec-val hl">Liquid FM</span></div>
+      <div class="spec-row"><span class="spec-key">Params</span><span class="spec-val">1.2B</span></div>
+      <div class="spec-row"><span class="spec-key">Precision</span><span class="spec-val">q4</span></div>
+      <div class="spec-row"><span class="spec-key">Backend</span><span class="spec-val">WebGPU → WASM</span></div>
+      <div class="spec-row"><span class="spec-key">Runtime</span><span class="spec-val">Transformers.js 3.7</span></div>
+    </div>
+
+    <div class="panel-section">
+      <button class="clear-btn" onclick="clearChat()">Clear Conversation</button>
+    </div>
+
+  </aside>
+
+  <!-- CENTER -->
+  <main class="panel-center">
+
+    <div class="chat-header">
+      <span class="chat-header-title">Inference Session</span>
+      <span class="chat-header-meta" id="sessionMeta">SES · —</span>
+    </div>
+
+    <div class="init-overlay" id="initOverlay">
+      <div class="init-glyph">
+        <div class="init-cell"></div><div class="init-cell"></div>
+        <div class="init-cell"></div><div class="init-cell"></div>
+        <div class="init-cell"></div><div class="init-cell"></div>
+        <div class="init-cell"></div><div class="init-cell"></div>
+        <div class="init-cell"></div><div class="init-cell"></div>
+        <div class="init-cell"></div><div class="init-cell"></div>
+      </div>
+      <div class="init-title">Select a model<br>and press Load.</div>
+      <div class="init-sub">
+        LFM2.5 runs entirely in your browser<br>
+        via WebGPU or WebAssembly.<br>
+        No data leaves your device.
+      </div>
+    </div>
+
+    <div class="messages hidden" id="messages"></div>
+
+    <div class="token-bar hidden" id="tokenBar">
+      <div class="tbar-item">
+        <span class="tbar-key">Speed</span>
+        <span class="tbar-val active" id="statSpeed">—</span>
+        <span class="tbar-key">tok/s</span>
+      </div>
+      <div class="tbar-sep"></div>
+      <div class="tbar-item">
+        <span class="tbar-key">Total tokens</span>
+        <span class="tbar-val" id="statTokens">0</span>
+      </div>
+      <div class="tbar-sep"></div>
+      <div class="tbar-item">
+        <span class="tbar-key">Messages</span>
+        <span class="tbar-val" id="statMessages">0</span>
+      </div>
+      <div class="tbar-sep"></div>
+      <div class="tbar-item">
+        <span class="tbar-key">Ctx</span>
+        <span class="tbar-val" id="ctxTokens">0</span>
+        <span class="tbar-key">~tok</span>
+      </div>
+    </div>
+
+    <div class="input-area hidden" id="inputArea">
+      <div class="input-row">
+        <textarea class="user-input" id="userInput"
+          placeholder="Send a message..."
+          rows="1"
+          onkeydown="handleKey(event)"
+          oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          Send
+          <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" width="10" height="10">
+            <path d="M1 5h8M5 1l4 4-4 4"/>
+          </svg>
+        </button>
+      </div>
+      <div class="input-hint">↵ Send · Shift+↵ New line</div>
+    </div>
+
+  </main>
+
+  <!-- RIGHT -->
+  <aside class="panel-right">
+
+    <div class="metric-block">
+      <div class="section-label" style="margin-bottom:0">Performance</div>
+      <div class="metric-row">
+        <div class="metric-label">
+          <span class="metric-name">Tokens / sec</span>
+          <span class="metric-value active" id="mTps">—</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill hl" id="bTps" style="width:0%"></div></div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-label">
+          <span class="metric-name">Context est.</span>
+          <span class="metric-value" id="mCtx">0</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="bCtx" style="width:0%"></div></div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-label">
+          <span class="metric-name">Total tokens</span>
+          <span class="metric-value" id="mTotal">0</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="bTotal" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="metric-block" style="border-bottom:none; padding-bottom:var(--sp2)">
+      <div class="section-label" style="margin-bottom:0">Event Log</div>
+    </div>
+    <div class="log-wrap">
+      <div class="log-stream" id="logStream"></div>
+    </div>
+
+  </aside>
+
+</div>
+
+<footer class="footer">
+  <div class="footer-headline">
+    Intelligence that<br><em>augments,</em> not replaces.
+  </div>
+  <div class="footer-viz">
+    <span class="footer-viz-label">Session throughput</span>
+    <div class="viz-bars" id="vizBars"></div>
+  </div>
+</footer>
+
+<script type="module">
+  import { pipeline, TextStreamer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.0/dist/transformers.min.js';
+
+  // Make available globally for onclick handlers
+  window._tf = { pipeline, TextStreamer, env };
+
+  // ── State
+  let generator = null;
+  let conversationHistory = [];
+  let isGenerating = false;
+  let totalTokensGenerated = 0;
+  let genStartTime = null;
+  let currentTokenCount = 0;
+  let throughputHistory = Array(20).fill(0);
+  const sessionStart = Date.now();
+
+  // ── Init sliders
+  document.querySelectorAll('input[type=range]').forEach(el => {
+    const min = +el.min, max = +el.max, val = +el.value;
+    el.style.setProperty('--fill', ((val - min) / (max - min) * 100) + '%');
+  });
+  window.updateSlider = el => {
+    const min = +el.min, max = +el.max, val = +el.value;
+    el.style.setProperty('--fill', ((val - min) / (max - min) * 100) + '%');
+  };
+
+  // ── Viz bars
+  function renderVizBars() {
+    const el = document.getElementById('vizBars');
+    el.innerHTML = '';
+    const max = Math.max(...throughputHistory, 1);
+    throughputHistory.forEach(val => {
+      const b = document.createElement('div');
+      b.className = 'viz-bar' + (val === Math.max(...throughputHistory) && val > 0 ? ' hl' : '');
+      b.style.height = Math.max(3, (val / max) * 44) + 'px';
+      el.appendChild(b);
+    });
+  }
+  renderVizBars();
+  setInterval(renderVizBars, 1200);
+
+  // ── Session timer
+  setInterval(() => {
+    const s = Math.floor((Date.now() - sessionStart) / 1000);
+    const m = String(Math.floor(s / 60)).padStart(2,'0');
+    document.getElementById('sessionMeta').textContent = `SES · ${m}:${String(s % 60).padStart(2,'0')}`;
+  }, 1000);
+
+  // ── Log
+  function log(text, type = '') {
+    const ls = document.getElementById('logStream');
+    const ts = new Date().toISOString().slice(11,19);
+    const el = document.createElement('div');
+    el.className = 'log-entry' + (type ? ' '+type : '');
+    el.innerHTML = `<span class="ts">${ts}</span>${text}`;
+    ls.appendChild(el);
+    ls.scrollTop = ls.scrollHeight;
+    if (ls.children.length > 120) ls.firstChild.remove();
+  }
+
+  // ── LOAD MODEL
+  window.loadModel = async function() {
+    const { pipeline, TextStreamer, env } = window._tf;
+    const btn = document.getElementById('loadBtn');
+    const wrap = document.getElementById('progressWrap');
+    const fill = document.getElementById('progressFill');
+    const label = document.getElementById('progressLabel');
+    const pct = document.getElementById('progressPct');
+    const modelId = document.getElementById('modelSelect').value;
+
+    btn.disabled = true;
+    btn.innerHTML = `LOADING... <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" width="10" height="10"><path d="M5 1v6M2 5l3 3 3-3"/></svg>`;
+    wrap.classList.remove('hidden');
+    document.getElementById('liveModel').textContent = modelId.split('/')[1];
+    log('Initializing · ' + modelId);
+
+    const onProgress = (progress) => {
+      if (progress.status === 'downloading') {
+        const p = progress.progress ? Math.round(progress.progress) : 0;
+        fill.style.width = p + '%';
+        pct.textContent = p + '%';
+        label.textContent = (progress.file || 'weights').slice(-50);
+        if (p % 10 === 0 && p > 0) log(`Downloading · ${p}%`);
+      } else if (progress.status === 'loading') {
+        fill.style.width = '92%';
+        label.textContent = 'Loading model into runtime...';
+        pct.textContent = '92%';
+        log('Loading runtime...');
+      } else if (progress.status === 'ready') {
+        fill.style.width = '100%';
+        pct.textContent = '100%';
+      }
+    };
+
+    try {
+      log('Trying WebGPU backend...');
+      label.textContent = 'Trying WebGPU...';
+
+      generator = await pipeline('text-generation', modelId, {
+        dtype: 'q4',
+        device: 'webgpu',
+        progress_callback: onProgress
+      }).catch(async gpuErr => {
+        // log('WebGPU failed: ' + gpuErr.message.slice(0,60), 'warn');
+        log('Falling back to WASM...', 'warn');
+        label.textContent = 'WebGPU unavailable — switching to WASM...';
+        fill.style.width = '0%';
+        pct.textContent = '0%';
+        return await pipeline('text-generation', modelId, {
+          dtype: 'q4',
+          device: 'wasm',
+          progress_callback: onProgress
+        });
+      });
+
+      // SUCCESS
+      fill.style.width = '100%';
+      pct.textContent = '100%';
+      label.textContent = 'Ready';
+      log('Model loaded. Inference ready.', 'ok');
+
+      btn.disabled = false;
+      btn.innerHTML = `Load Model <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" width="10" height="10"><path d="M5 1v6M2 5l3 3 3-3"/></svg>`;
+
+      document.getElementById('statusDot').classList.add('active');
+      document.getElementById('statusText').textContent = 'ONLINE';
+
+      document.getElementById('initOverlay').classList.add('hidden');
+      document.getElementById('messages').classList.remove('hidden');
+      document.getElementById('inputArea').classList.remove('hidden');
+      document.getElementById('tokenBar').classList.remove('hidden');
+      document.getElementById('userInput').focus();
+
+    } catch (err) {
+      log('FATAL: ' + err.message, 'warn');
+      label.textContent = 'Error: ' + err.message;
+      fill.style.background = 'rgba(220,38,38,0.7)';
+      btn.disabled = false;
+      btn.innerHTML = `RETRY <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" width="10" height="10"><path d="M5 1v6M2 5l3 3 3-3"/></svg>`;
+    }
+  };
+
+  // ── SEND MESSAGE
+  window.sendMessage = async function() {
+    if (!generator || isGenerating) return;
+    const input = document.getElementById('userInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = '';
+    autoResize(input);
+    isGenerating = true;
+    document.getElementById('sendBtn').disabled = true;
+
+    const sysPrompt = document.getElementById('sysPrompt').value.trim();
+    const msgContainer = document.getElementById('messages');
+
+    conversationHistory.push({ role: 'user', content: text });
+    appendMessage('user', text);
+    msgContainer.scrollTop = msgContainer.scrollHeight;
+
+    const msgArray = sysPrompt
+      ? [{ role: 'system', content: sysPrompt }, ...conversationHistory]
+      : [...conversationHistory];
+
+    const aiMsgEl = appendMessage('assistant', '');
+    const contentEl = aiMsgEl.querySelector('.msg-content');
+    const cursor = document.createElement('span');
+    cursor.className = 'typing-cursor';
+    contentEl.appendChild(cursor);
+
+    let outputText = '';
+    currentTokenCount = 0;
+    genStartTime = Date.now();
+    log(`Generating · max_tokens=${document.getElementById('maxTokens').value} · temp=${document.getElementById('temperature').value}`);
+
+    const streamer = new window._tf.TextStreamer(generator.tokenizer, {
+      skip_prompt: true,
+      skip_special_tokens: true,
+      callback_function: (token) => {
+        outputText += token;
+        contentEl.textContent = outputText;
+        contentEl.appendChild(cursor);
+        currentTokenCount++;
+        totalTokensGenerated++;
+
+        const elapsed = (Date.now() - genStartTime) / 1000;
+        if (elapsed > 0) {
+          const tps = (currentTokenCount / elapsed).toFixed(1);
+          document.getElementById('liveSpeed').textContent = tps;
+          document.getElementById('statSpeed').textContent = tps;
+          document.getElementById('mTps').textContent = tps;
+          document.getElementById('bTps').style.width = Math.min(100, (parseFloat(tps) / 40) * 100) + '%';
+          throughputHistory.push(parseFloat(tps));
+          if (throughputHistory.length > 20) throughputHistory.shift();
+        }
+
+        document.getElementById('statTokens').textContent = totalTokensGenerated;
+        document.getElementById('mTotal').textContent = totalTokensGenerated;
+        document.getElementById('bTotal').style.width = Math.min(100, (totalTokensGenerated / 3000) * 100) + '%';
+        msgContainer.scrollTop = msgContainer.scrollHeight;
+      }
+    });
+
+    try {
+      const maxTokens = parseInt(document.getElementById('maxTokens').value);
+      const temp = parseFloat(document.getElementById('temperature').value);
+      const topP = parseFloat(document.getElementById('topP').value);
+      const repPenalty = parseFloat(document.getElementById('repPenalty').value);
+
+      await generator(msgArray, {
+        max_new_tokens: maxTokens,
+        do_sample: temp > 0,
+        temperature: temp > 0 ? temp : undefined,
+        top_p: topP,
+        repetition_penalty: repPenalty,
+        streamer
+      });
+
+      cursor.remove();
+      conversationHistory.push({ role: 'assistant', content: outputText });
+
+      const userCount = conversationHistory.filter(m => m.role === 'user').length;
+      document.getElementById('statMessages').textContent = userCount;
+
+      const ctxEst = conversationHistory.reduce((a, m) => a + Math.round(m.content.length / 4), 0);
+      document.getElementById('ctxTokens').textContent = ctxEst;
+      document.getElementById('mCtx').textContent = ctxEst;
+      document.getElementById('bCtx').style.width = Math.min(100, (ctxEst / 8000) * 100) + '%';
+
+      const finalTps = (currentTokenCount / ((Date.now() - genStartTime) / 1000)).toFixed(1);
+      log(`Done · ${currentTokenCount} tokens · ${finalTps} tok/s`, 'ok');
+
+    } catch (err) {
+      cursor.remove();
+      contentEl.textContent = '[Error: ' + err.message + ']';
+      contentEl.style.color = 'var(--soft)';
+      log('Generation error: ' + err.message, 'warn');
+    }
+
+    isGenerating = false;
+    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('userInput').focus();
+  };
+
+  // ── APPEND MESSAGE
+  function appendMessage(role, content) {
+    const container = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'message ' + role;
+    const now = new Date().toTimeString().slice(0, 8);
+    div.innerHTML = `
+      <div class="msg-avatar">${role === 'user' ? 'USR' : 'LFM'}</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">${role === 'user' ? 'OPERATOR' : 'LFM2.5'}</span>
+          <span class="msg-time">${now}</span>
+        </div>
+        <div class="msg-content">${content}</div>
+      </div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+  }
+
+  // ── UTILITIES
+  window.clearChat = function() {
+    conversationHistory = [];
+    document.getElementById('messages').innerHTML = '';
+    ['statMessages','ctxTokens','mCtx'].forEach(id => document.getElementById(id).textContent = '0');
+    document.getElementById('bCtx').style.width = '0%';
+    log('Conversation cleared.', 'ok');
+  };
+  window.handleKey = function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendMessage(); }
+  };
+  window.autoResize = function(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+  };
+
+  log('Interface ready. Select model and press Load.', 'ok');
+</script>
+</body>
+</html>
