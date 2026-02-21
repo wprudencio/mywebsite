@@ -1367,6 +1367,12 @@
           <button class="clear-btn"
             style="width:auto; padding:4px 8px; min-height:0; border-radius:12px; font-size:10px"
             onclick="loadToolExample('ip')">Get IP</button>
+          <button class="clear-btn"
+            style="width:auto; padding:4px 8px; min-height:0; border-radius:12px; font-size:10px"
+            onclick="loadToolExample('time')">Time</button>
+          <button class="clear-btn"
+            style="width:auto; padding:4px 8px; min-height:0; border-radius:12px; font-size:10px"
+            onclick="loadToolExample('date')">Date</button>
         </div>
       </div>
       <div class="modal-body">
@@ -2017,6 +2023,36 @@
           }
         },
         code: `async () => {\n  try {\n    const res = await fetch("https://api.ipify.org/?format=json");\n    const data = await res.json();\n    return data;\n  } catch (error) {\n    return { error: error.message };\n  }\n}`
+      },
+      time: {
+        schema: {
+          type: "function",
+          function: {
+            name: "get_current_time",
+            description: "Get the current time",
+            parameters: {
+              type: "object",
+              properties: {},
+              required: []
+            }
+          }
+        },
+        code: `async () => {\n  const now = new Date();\n  return { time: now.toLocaleTimeString(), iso: now.toISOString() };\n}`
+      },
+      date: {
+        schema: {
+          type: "function",
+          function: {
+            name: "get_current_date",
+            description: "Get the current date",
+            parameters: {
+              type: "object",
+              properties: {},
+              required: []
+            }
+          }
+        },
+        code: `async () => {\n  const now = new Date();\n  return { date: now.toLocaleDateString(), iso: now.toISOString() };\n}`
       }
     };
 
