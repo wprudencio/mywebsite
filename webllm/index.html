@@ -1567,8 +1567,20 @@
       isGenerating = true;
       document.getElementById('sendBtn').disabled = true;
 
-      const msgArray = sysPrompt
-        ? [{ role: 'system', content: sysPrompt }, ...conversationHistory]
+      // Build system prompt with tool definitions injected
+      let fullSysPrompt = sysPrompt;
+      const tools = window.registeredTools.map(t => t.schema);
+      if (tools.length > 0) {
+        const toolDescriptions = tools.map(t => {
+          const f = t.function;
+          return `- ${f.name}: ${f.description || 'No description'}\n  Parameters: ${JSON.stringify(f.parameters || {})}`;
+        }).join('\n');
+
+        fullSysPrompt += `\n\nYou have access to the following tools:\n${toolDescriptions}\n\nWhen you need to use a tool, you MUST respond ONLY with a JSON code block in this exact format:\n\`\`\`json\n{"name": "function_name", "arguments": {"param": "value"}}\n\`\`\`\nDo not add any text before or after the JSON block when calling a tool. After receiving the tool result, provide a natural language response to the user.`;
+      }
+
+      const msgArray = fullSysPrompt
+        ? [{ role: 'system', content: fullSysPrompt }, ...conversationHistory]
         : [...conversationHistory];
 
       const aiMsgEl = appendMessage('assistant', '');
@@ -1578,16 +1590,41 @@
       contentEl.appendChild(cursor);
 
       let outputText = '';
+      let rawOutputText = ''; // includes special tokens for tool call parsing
       currentTokenCount = 0;
       genStartTime = Date.now();
       log(`Generating · max_tokens=${document.getElementById('maxTokens').value} · temp=${document.getElementById('temperature').value}`);
 
       const streamer = new window._tf.TextStreamer(generator.tokenizer, {
         skip_prompt: true,
-        skip_special_tokens: true,
+        skip_special_tokens: false,
         callback_function: (token) => {
-          outputText += token;
-          contentEl.innerHTML = marked.parse(outputText);
+          rawOutputText += token;
+          // Strip common special tokens for display
+          const displayToken = token
+            .replace(/<\|im_end\|>/g, '')
+            .replace(/<\|im_start\|>/g, '')
+            .replace(/<\|endoftext\|>/g, '')
+            .replace(/<\|tool_call_start\|>/g, '')
+            .replace(/<\|tool_call_end\|>/g, '');
+          outputText += displayToken;
+
+          // Check if we're inside a tool_call block — don't render it visually
+          const inQwenToolCall = rawOutputText.includes('<tool_call>') && !rawOutputText.includes('</tool_call>');
+          const inLfmToolCall = rawOutputText.includes('<|tool_call_start|>') && !rawOutputText.includes('<|tool_call_end|>');
+          const inToolCall = inQwenToolCall || inLfmToolCall;
+          if (!inToolCall) {
+            // Clean display: remove tool_call blocks from visible text
+            const cleanDisplay = outputText
+              .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '[Calling tool...]')
+              .replace(/\[[^\]]*\([^)]*\)\]/g, '[Calling tool...]')  // Pythonic calls like [fn(args)]
+              .trim();
+            if (cleanDisplay) {
+              contentEl.innerHTML = marked.parse(cleanDisplay);
+            }
+          } else {
+            contentEl.innerHTML = '<span style="color:var(--orange)">⚡ Preparing tool call...</span>';
+          }
           const cursorContainer = contentEl.lastElementChild && contentEl.lastElementChild.tagName !== 'PRE' && contentEl.lastElementChild.tagName !== 'UL' && contentEl.lastElementChild.tagName !== 'OL' ? contentEl.lastElementChild : contentEl;
           cursorContainer.appendChild(cursor);
           currentTokenCount++;
@@ -1616,7 +1653,6 @@
         const temp = parseFloat(document.getElementById('temperature').value);
         const topP = parseFloat(document.getElementById('topP').value);
         const repPenalty = parseFloat(document.getElementById('repPenalty').value);
-        const tools = window.registeredTools.map(t => t.schema);
 
         const result = await generator(msgArray, {
           max_new_tokens: maxTokens,
@@ -1631,55 +1667,98 @@
 
         cursor.remove();
 
+        // --- Parse tool calls from multiple sources ---
+        let toolCalls = [];
+
+        // 1. Check pipeline structured result
         let assistantMessage = null;
         if (result && result[0] && Array.isArray(result[0].generated_text)) {
           assistantMessage = result[0].generated_text[result[0].generated_text.length - 1];
-        } else {
-          assistantMessage = { role: 'assistant', content: outputText };
+          if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+            toolCalls = assistantMessage.tool_calls;
+            log('Tool calls found via pipeline result', 'ok');
+          }
         }
 
-        conversationHistory.push(assistantMessage);
+        // 2. Parse raw text for <tool_call> blocks (Qwen/Hermes style)
+        if (toolCalls.length === 0) {
+          toolCalls = parseToolCalls(rawOutputText);
+          if (toolCalls.length > 0) {
+            log(`Parsed ${toolCalls.length} tool call(s) from raw output`, 'ok');
+          }
+        }
 
-        const userCount = conversationHistory.filter(m => m.role === 'user').length;
-        document.getElementById('statMessages').textContent = userCount;
+        // Build the clean content (without tool call markup)
+        const cleanContent = outputText
+          .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+          .replace(/\[[^\]]*\([^)]*\)\]/g, '')  // Pythonic calls
+          .replace(/\[Calling tool\.\.\.\]/g, '')
+          .trim();
 
-        const ctxEst = conversationHistory.reduce((a, m) => a + Math.round((m.content || '').length / 4), 0);
-        document.getElementById('ctxTokens').textContent = ctxEst;
-        document.getElementById('mCtx').textContent = ctxEst;
-        document.getElementById('bCtx').style.width = Math.min(100, (ctxEst / 8000) * 100) + '%';
+        if (toolCalls.length > 0) {
+          // We have tool calls to execute
+          const histMsg = assistantMessage && assistantMessage.tool_calls
+            ? assistantMessage
+            : { role: 'assistant', content: cleanContent || null, tool_calls: toolCalls };
+          conversationHistory.push(histMsg);
 
-        const finalTps = (currentTokenCount / ((Date.now() - genStartTime) / 1000)).toFixed(1);
-        log(`Done · ${currentTokenCount} tokens · ${finalTps} tok/s`, 'ok');
+          contentEl.innerHTML = '<span style="color:var(--orange)">⚡ Executing tools...</span>';
 
-        if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-          contentEl.textContent = '[Executing Tools...]';
-          contentEl.style.color = 'var(--soft)';
-
-          for (let tc of assistantMessage.tool_calls) {
+          for (let tc of toolCalls) {
             const fnName = tc.function.name;
             log('Tool called: ' + fnName);
             const toolObj = window.registeredTools.find(t => t.schema.function.name === fnName);
 
-            let toolResult = "";
+            let toolResult = '';
             if (toolObj) {
               try {
                 const args = typeof tc.function.arguments === 'string' ? JSON.parse(tc.function.arguments) : tc.function.arguments;
+                log('Tool args: ' + JSON.stringify(args));
                 const res = await toolObj.fn(args);
                 toolResult = typeof res === 'string' ? res : JSON.stringify(res);
               } catch (e) {
-                toolResult = "Error executing structure: " + e.message;
+                toolResult = 'Error executing function: ' + e.message;
               }
             } else {
               toolResult = `Tool "${fnName}" not found locally.`;
             }
 
             conversationHistory.push({ role: 'tool', name: fnName, content: toolResult });
-            appendMessage('tool', `🔧 **${fnName}** Output:\n\`\`\`json\n${toolResult}\n\`\`\``);
+            appendMessage('tool', `🔧 **${fnName}** returned:\n\`\`\`json\n${toolResult}\n\`\`\``);
           }
 
+          // Update stats
+          const userCount = conversationHistory.filter(m => m.role === 'user').length;
+          document.getElementById('statMessages').textContent = userCount;
+          const ctxEst = conversationHistory.reduce((a, m) => a + Math.round((m.content || '').length / 4), 0);
+          document.getElementById('ctxTokens').textContent = ctxEst;
+          document.getElementById('mCtx').textContent = ctxEst;
+          document.getElementById('bCtx').style.width = Math.min(100, (ctxEst / 8000) * 100) + '%';
+
+          const finalTps = (currentTokenCount / ((Date.now() - genStartTime) / 1000)).toFixed(1);
+          log(`Done · ${currentTokenCount} tokens · ${finalTps} tok/s`, 'ok');
+
           isGenerating = false;
-          log("Feeding tool outcomes back into generator...");
+          log('Feeding tool results back into generator...');
           return await window.sendMessage(true);
+
+        } else {
+          // Normal text response, no tool calls
+          if (cleanContent) {
+            contentEl.innerHTML = marked.parse(cleanContent);
+          }
+          conversationHistory.push({ role: 'assistant', content: cleanContent || outputText });
+
+          const userCount = conversationHistory.filter(m => m.role === 'user').length;
+          document.getElementById('statMessages').textContent = userCount;
+
+          const ctxEst = conversationHistory.reduce((a, m) => a + Math.round((m.content || '').length / 4), 0);
+          document.getElementById('ctxTokens').textContent = ctxEst;
+          document.getElementById('mCtx').textContent = ctxEst;
+          document.getElementById('bCtx').style.width = Math.min(100, (ctxEst / 8000) * 100) + '%';
+
+          const finalTps = (currentTokenCount / ((Date.now() - genStartTime) / 1000)).toFixed(1);
+          log(`Done · ${currentTokenCount} tokens · ${finalTps} tok/s`, 'ok');
         }
 
       } catch (err) {
@@ -1745,9 +1824,121 @@
       el.style.height = Math.min(el.scrollHeight, 140) + 'px';
     };
 
+    // ── PARSE TOOL CALLS from raw text
+    // Supports:
+    //   Qwen-style:  <tool_call>{"name":..., "arguments":...}</tool_call>
+    //   LFM2.5-style: <|tool_call_start|>[fn_name(arg="val")]<|tool_call_end|>  (Pythonic)
+    //   LFM2.5 JSON: <|tool_call_start|>{"name":..., "arguments":...}<|tool_call_end|>
+    function parseToolCalls(rawText) {
+      const calls = [];
+      let match;
+
+      // Pattern 1: Qwen — <tool_call>{ JSON }</tool_call>
+      const qwenRegex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
+      while ((match = qwenRegex.exec(rawText)) !== null) {
+        try {
+          const parsed = JSON.parse(match[1].trim());
+          if (parsed.name) {
+            calls.push({
+              function: {
+                name: parsed.name,
+                arguments: parsed.arguments || {}
+              }
+            });
+          }
+        } catch (e) {
+          log('Failed to parse Qwen tool_call JSON: ' + e.message, 'warn');
+        }
+      }
+
+      // Pattern 2: LFM2.5 — <|tool_call_start|>...<|tool_call_end|>
+      if (calls.length === 0) {
+        const lfmRegex = /<\|tool_call_start\|>\s*([\s\S]*?)\s*<\|tool_call_end\|>/g;
+        while ((match = lfmRegex.exec(rawText)) !== null) {
+          const block = match[1].trim();
+
+          // Try JSON first
+          try {
+            const parsed = JSON.parse(block);
+            if (parsed.name) {
+              calls.push({
+                function: {
+                  name: parsed.name,
+                  arguments: parsed.arguments || parsed.parameters || {}
+                }
+              });
+              continue;
+            }
+          } catch (e) { /* not JSON, try Pythonic */ }
+
+          // Parse Pythonic: [func_name(key="value", key2=123)] or func_name(key="value")
+          const pyMatches = block.matchAll(/([a-zA-Z_][a-zA-Z0-9_]*)\(([^)]*)\)/g);
+          for (const pm of pyMatches) {
+            const fnName = pm[1];
+            const argsStr = pm[2].trim();
+            const args = {};
+            if (argsStr) {
+              // Parse key=value pairs, handling quoted strings and numbers
+              const argRegex = /([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^,\s)]+))/g;
+              let argMatch;
+              while ((argMatch = argRegex.exec(argsStr)) !== null) {
+                const key = argMatch[1];
+                const val = argMatch[2] ?? argMatch[3] ?? argMatch[4];
+                // Try parsing as number/bool
+                if (val === 'true') args[key] = true;
+                else if (val === 'false') args[key] = false;
+                else if (val === 'None' || val === 'null') args[key] = null;
+                else if (!isNaN(Number(val)) && val !== '') args[key] = Number(val);
+                else args[key] = val;
+              }
+            }
+            calls.push({ function: { name: fnName, arguments: args } });
+          }
+        }
+      }
+
+      // Pattern 3: code block fallback
+      if (calls.length === 0) {
+        const codeBlockRegex = /```(?:json)?\s*\n?\s*(\{[\s\S]*?"name"[\s\S]*?\})\s*\n?\s*```/g;
+        while ((match = codeBlockRegex.exec(rawText)) !== null) {
+          try {
+            const parsed = JSON.parse(match[1].trim());
+            if (parsed.name && (parsed.arguments || parsed.parameters)) {
+              calls.push({
+                function: {
+                  name: parsed.name,
+                  arguments: parsed.arguments || parsed.parameters || {}
+                }
+              });
+            }
+          } catch (e) { /* ignore */ }
+        }
+      }
+
+      return calls;
+    }
+
     // ── TOOLS MANAGEMENT
     window.registeredTools = [];
-    window.openToolModal = () => document.getElementById('toolModal').classList.remove('hidden');
+    window.openToolModal = () => {
+      document.getElementById('toolSchemaInput').value = `{
+  "type": "function",
+  "function": {
+    "name": "get_weather",
+    "description": "Get current weather updates",
+    "parameters": {
+      "type": "object",
+      "properties": { "location": { "type": "string" } },
+      "required": ["location"]
+    }
+  }
+}`;
+      document.getElementById('toolCodeInput').value = `async ({ location }) => {
+  // Replace with a real API call
+  return { location, temperature: "22°C", condition: "Sunny" };
+}`;
+      document.getElementById('toolModal').classList.remove('hidden');
+    };
     window.closeToolModal = () => document.getElementById('toolModal').classList.add('hidden');
 
     window.formatToolCode = () => {
@@ -1773,7 +1964,7 @@
         renderTools();
         closeToolModal();
         window.clearChat();
-        log(`Added tool: ${schema.function.name}. Model context reset.`, 'ok');
+        log(`Added tool: ${schema.function.name}. Context reset.`, 'ok');
       } catch (e) {
         alert("Configuration Error: " + e.message);
       }
