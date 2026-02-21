@@ -32,10 +32,10 @@
       --soft: #e8ab8f;
       --white: #ffffff;
 
-      --sp1: 8px;
-      --sp2: 16px;
-      --sp3: 24px;
-      --sp4: 40px;
+      --sp1: 10px;
+      --sp2: 20px;
+      --sp3: 32px;
+      --sp4: 48px;
       --font: 'Geist Mono', monospace;
       --mono: 'Geist Mono', monospace;
       --dur: 200ms;
@@ -61,7 +61,7 @@
 
     /* TOPBAR */
     .topbar {
-      height: 52px;
+      height: 64px;
       flex-shrink: 0;
       background: var(--deep);
       display: flex;
@@ -79,8 +79,8 @@
     }
 
     .brand-mark {
-      width: 20px;
-      height: 20px;
+      width: 24px;
+      height: 24px;
       border: 1.5px solid var(--orange);
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -100,7 +100,7 @@
 
     .brand-name {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       color: var(--bg);
       letter-spacing: 0.1em;
       text-transform: uppercase;
@@ -139,7 +139,7 @@
 
     .status-text {
       font-family: var(--mono);
-      font-size: 10px;
+      font-size: 12px;
       color: var(--light);
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -153,7 +153,7 @@
 
     .live-badge {
       font-family: var(--mono);
-      font-size: 10px;
+      font-size: 12px;
       color: var(--light);
       letter-spacing: 0.05em;
       text-transform: uppercase;
@@ -168,7 +168,7 @@
       flex: 1;
       min-height: 0;
       display: grid;
-      grid-template-columns: 256px 1fr 208px;
+      grid-template-columns: 320px 1fr 260px;
       overflow: hidden;
     }
 
@@ -188,7 +188,7 @@
 
     .section-label {
       font-family: var(--mono);
-      font-size: 10px;
+      font-size: 12px;
       color: var(--light);
       letter-spacing: 0.1em;
       text-transform: uppercase;
@@ -201,7 +201,7 @@
       border: 1px solid #d4d4d4;
       padding: 8px 28px 8px 10px;
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       color: var(--charcoal);
       outline: none;
       cursor: pointer;
@@ -224,7 +224,7 @@
       border: none;
       padding: 10px;
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       cursor: pointer;
@@ -274,7 +274,7 @@
 
     .progress-label {
       font-family: var(--mono);
-      font-size: 9px;
+      font-size: 11px;
       color: var(--light);
       white-space: nowrap;
       overflow: hidden;
@@ -284,7 +284,7 @@
 
     .progress-pct {
       font-family: var(--mono);
-      font-size: 9px;
+      font-size: 11px;
       color: var(--orange);
       flex-shrink: 0;
     }
@@ -295,7 +295,7 @@
       border: 1px solid #d4d4d4;
       padding: 8px 10px;
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       color: var(--charcoal);
       resize: none;
       outline: none;
@@ -327,7 +327,7 @@
 
     .slider-name {
       font-family: var(--mono);
-      font-size: 9px;
+      font-size: 11px;
       color: var(--light);
       letter-spacing: 0.07em;
       text-transform: uppercase;
@@ -335,7 +335,7 @@
 
     .slider-val {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       color: var(--char2);
       font-weight: 500;
     }
@@ -372,14 +372,14 @@
 
     .spec-key {
       font-family: var(--mono);
-      font-size: 9px;
+      font-size: 11px;
       color: var(--light);
       letter-spacing: 0.05em;
     }
 
     .spec-val {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       color: var(--char2);
     }
 
@@ -394,7 +394,7 @@
       color: var(--mid);
       padding: 8px;
       font-family: var(--mono);
-      font-size: 9px;
+      font-size: 11px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       cursor: pointer;
@@ -416,7 +416,7 @@
     }
 
     .chat-header {
-      height: 44px;
+      height: 60px;
       flex-shrink: 0;
       border-bottom: 1px solid #d8d8d8;
       display: flex;
@@ -426,7 +426,7 @@
     }
 
     .chat-header-title {
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 500;
       color: var(--charcoal);
       letter-spacing: -0.01em;
@@ -434,7 +434,7 @@
 
     .chat-header-meta {
       font-family: var(--mono);
-      font-size: 10px;
+      font-size: 12px;
       color: var(--light);
       letter-spacing: 0.05em;
     }
@@ -489,7 +489,7 @@
     }
 
     .init-title {
-      font-size: 26px;
+      font-size: 28px;
       font-weight: 500;
       color: var(--charcoal);
       letter-spacing: -0.02em;
@@ -499,7 +499,7 @@
 
     .init-sub {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       color: var(--light);
       text-align: center;
       line-height: 1.7;
@@ -553,12 +553,12 @@
 
     .msg-avatar {
       font-family: var(--mono);
-      font-size: 9px;
+      font-size: 11px;
       letter-spacing: 0.05em;
       color: var(--light);
       padding-top: 20px;
       flex-shrink: 0;
-      width: 28px;
+      width: 36px;
       text-align: center;
     }
 
@@ -589,7 +589,7 @@
 
     .msg-name {
       font-family: var(--mono);
-      font-size: 10px;
+      font-size: 12px;
       color: var(--light);
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -601,13 +601,13 @@
 
     .msg-time {
       font-family: var(--mono);
-      font-size: 9px;
+      font-size: 11px;
       color: #bbb;
       letter-spacing: 0.03em;
     }
 
     .msg-content {
-      font-size: 14px;
+      font-size: 16px;
       line-height: 1.65;
       color: var(--char2);
       word-break: break-word;
@@ -633,7 +633,7 @@
       border-radius: 4px;
       overflow-x: auto;
       font-family: var(--mono);
-      font-size: 13px;
+      font-size: 15px;
       margin-bottom: 0.75em;
     }
 
@@ -642,7 +642,7 @@
       background: var(--bg2);
       padding: 2px 4px;
       border-radius: 3px;
-      font-size: 13px;
+      font-size: 15px;
     }
 
     .msg-content pre code {
@@ -716,7 +716,7 @@
 
     .tbar-key {
       font-family: var(--mono);
-      font-size: 9px;
+      font-size: 11px;
       color: var(--light);
       letter-spacing: 0.07em;
       text-transform: uppercase;
@@ -724,7 +724,7 @@
 
     .tbar-val {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       color: var(--char2);
       font-weight: 500;
     }
@@ -763,13 +763,13 @@
       border: 1px solid #d4d4d4;
       padding: 10px var(--sp2);
       font-family: var(--font);
-      font-size: 14px;
+      font-size: 16px;
       color: var(--charcoal);
       resize: none;
       outline: none;
       line-height: 1.5;
-      min-height: 42px;
-      max-height: 140px;
+      min-height: 54px;
+      max-height: 180px;
       overflow-y: auto;
       transition: border-color var(--dur);
     }
@@ -786,10 +786,10 @@
       background: var(--charcoal);
       color: var(--bg);
       border: none;
-      height: 42px;
+      height: 54px;
       padding: 0 18px;
       font-family: var(--mono);
-      font-size: 10px;
+      font-size: 12px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       cursor: pointer;
@@ -813,7 +813,7 @@
     .input-hint {
       margin-top: 5px;
       font-family: var(--mono);
-      font-size: 9px;
+      font-size: 11px;
       color: var(--light);
       letter-spacing: 0.04em;
     }
@@ -848,7 +848,7 @@
 
     .metric-name {
       font-family: var(--mono);
-      font-size: 9px;
+      font-size: 11px;
       color: var(--light);
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -856,7 +856,7 @@
 
     .metric-value {
       font-family: var(--mono);
-      font-size: 12px;
+      font-size: 14px;
       color: var(--char2);
       font-weight: 500;
     }
@@ -911,7 +911,7 @@
 
     .log-entry {
       font-family: var(--mono);
-      font-size: 9px;
+      font-size: 11px;
       color: var(--light);
       line-height: 1.7;
       letter-spacing: 0.02em;
@@ -960,7 +960,7 @@
     }
 
     .footer-headline {
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 500;
       color: var(--bg);
       letter-spacing: -0.01em;
@@ -980,7 +980,7 @@
 
     .footer-viz-label {
       font-family: var(--mono);
-      font-size: 9px;
+      font-size: 11px;
       color: var(--light);
       letter-spacing: 0.08em;
       text-transform: uppercase;
