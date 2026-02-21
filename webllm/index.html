@@ -1016,6 +1016,91 @@
     ::-webkit-scrollbar-thumb {
       background: #ccc;
     }
+
+    /* Modal styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.hidden {
+      display: none;
+    }
+
+    .modal {
+      background: var(--bg2);
+      border: 1px solid #d4d4d4;
+      width: 480px;
+      max-width: 90%;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-header {
+      padding: var(--sp3);
+      border-bottom: 1px solid #d4d4d4;
+      background: var(--white);
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--charcoal);
+    }
+
+    .modal-body {
+      padding: var(--sp3);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .input-lbl {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--light);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .modal-footer {
+      padding: var(--sp3);
+      border-top: 1px solid #d4d4d4;
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--sp2);
+      background: var(--bg);
+    }
+
+    .tool-chip {
+      background: var(--white);
+      border: 1px solid #d4d4d4;
+      padding: 6px 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--charcoal);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .tool-chip-remove {
+      cursor: pointer;
+      color: var(--light);
+      font-weight: bold;
+    }
+
+    .tool-chip-remove:hover {
+      color: var(--soft);
+    }
   </style>
 </head>
 
@@ -1048,7 +1133,7 @@
         <select class="model-select" id="modelSelect">
           <option value="onnx-community/LFM2-1.2B-ONNX">LFM2-1.2B-Instruct</option>
           <option value="onnx-community/LFM2-1.2B-ONNX">LFM2-1.2B (base)</option>
-          <option value="onnx-community/Qwen2.5-0.5B-Instruct">Qwen2.5-0.5B-Instruct</option>
+          <option value="LiquidAI/LFM2.5-1.2B-Thinking-ONNX">LFM2.5-1.2B-Thinking-ONNX</option>
         </select>
         <button class="load-btn" id="loadBtn" onclick="loadModel()">
           Load Model
@@ -1071,6 +1156,16 @@
         <div class="section-label">System Prompt</div>
         <textarea class="sys-prompt" id="sysPrompt"
           rows="4">You are a helpful AI assistant running locally in your browser. Be concise and precise.</textarea>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-label" style="display:flex; justify-content:space-between;">
+          <span>Functions (Tools)</span>
+          <span style="cursor:pointer; color:var(--orange); font-size:10px" onclick="openToolModal()">+ Add Tool</span>
+        </div>
+        <div id="toolsList" style="display:flex; flex-direction:column; gap:8px;">
+          <span style="font-size:11px; color:var(--light)">No tools added.</span>
+        </div>
       </div>
 
       <div class="panel-section">
@@ -1253,6 +1348,46 @@
     </div>
   </footer>
 
+  <div id="toolModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Create Function (Tool)</span>
+      </div>
+      <div class="modal-body">
+        <div class="input-lbl">JSON Schema</div>
+        <textarea id="toolSchemaInput" class="sys-prompt" rows="7"
+          style="font-size:11px; white-space:pre; overflow-x:auto;">{
+  "type": "function",
+  "function": {
+    "name": "get_weather",
+    "description": "Get current weather updates",
+    "parameters": {
+      "type": "object",
+      "properties": { "location": { "type": "string" } },
+      "required": ["location"]
+    }
+  }
+}</textarea>
+
+        <div class="input-lbl" style="margin-top:var(--sp2); display:flex; justify-content:space-between;">
+          <span>Implementation (JavaScript)</span>
+          <span style="cursor:pointer; color:var(--orange); font-size:10px" onclick="formatToolCode()">Format</span>
+        </div>
+        <textarea id="toolCodeInput" class="sys-prompt" rows="4"
+          style="font-size:11px; white-space:pre; overflow-x:auto;">async ({ location }) => {
+  // Call real API here
+  return { location, temperature: "22°C", condition: "Sunny" };
+}</textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="clear-btn" style="width:auto; padding:6px 16px; min-height:0"
+          onclick="closeToolModal()">Cancel</button>
+        <button class="send-btn" style="height:auto; padding:6px 16px; margin:0; line-height:1"
+          onclick="submitTool()">Save & Reload</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { pipeline, TextStreamer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.0/dist/transformers.min.js';
 
@@ -1412,23 +1547,25 @@
     };
 
     // ── SEND MESSAGE
-    window.sendMessage = async function () {
+    window.sendMessage = async function (isFollowUp = false) {
       if (!generator || isGenerating) return;
-      const input = document.getElementById('userInput');
-      const text = input.value.trim();
-      if (!text) return;
-
-      input.value = '';
-      autoResize(input);
-      isGenerating = true;
-      document.getElementById('sendBtn').disabled = true;
 
       const sysPrompt = document.getElementById('sysPrompt').value.trim();
       const msgContainer = document.getElementById('messages');
 
-      conversationHistory.push({ role: 'user', content: text });
-      appendMessage('user', text);
-      msgContainer.scrollTop = msgContainer.scrollHeight;
+      if (!isFollowUp) {
+        const input = document.getElementById('userInput');
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        autoResize(input);
+        conversationHistory.push({ role: 'user', content: text });
+        appendMessage('user', text);
+        msgContainer.scrollTop = msgContainer.scrollHeight;
+      }
+
+      isGenerating = true;
+      document.getElementById('sendBtn').disabled = true;
 
       const msgArray = sysPrompt
         ? [{ role: 'system', content: sysPrompt }, ...conversationHistory]
@@ -1479,23 +1616,34 @@
         const temp = parseFloat(document.getElementById('temperature').value);
         const topP = parseFloat(document.getElementById('topP').value);
         const repPenalty = parseFloat(document.getElementById('repPenalty').value);
+        const tools = window.registeredTools.map(t => t.schema);
 
-        await generator(msgArray, {
+        const result = await generator(msgArray, {
           max_new_tokens: maxTokens,
+          tools: tools.length > 0 ? tools : undefined,
           do_sample: temp > 0,
           temperature: temp > 0 ? temp : undefined,
           top_p: topP,
           repetition_penalty: repPenalty,
+          return_full_text: false,
           streamer
         });
 
         cursor.remove();
-        conversationHistory.push({ role: 'assistant', content: outputText });
+
+        let assistantMessage = null;
+        if (result && result[0] && Array.isArray(result[0].generated_text)) {
+          assistantMessage = result[0].generated_text[result[0].generated_text.length - 1];
+        } else {
+          assistantMessage = { role: 'assistant', content: outputText };
+        }
+
+        conversationHistory.push(assistantMessage);
 
         const userCount = conversationHistory.filter(m => m.role === 'user').length;
         document.getElementById('statMessages').textContent = userCount;
 
-        const ctxEst = conversationHistory.reduce((a, m) => a + Math.round(m.content.length / 4), 0);
+        const ctxEst = conversationHistory.reduce((a, m) => a + Math.round((m.content || '').length / 4), 0);
         document.getElementById('ctxTokens').textContent = ctxEst;
         document.getElementById('mCtx').textContent = ctxEst;
         document.getElementById('bCtx').style.width = Math.min(100, (ctxEst / 8000) * 100) + '%';
@@ -1503,9 +1651,40 @@
         const finalTps = (currentTokenCount / ((Date.now() - genStartTime) / 1000)).toFixed(1);
         log(`Done · ${currentTokenCount} tokens · ${finalTps} tok/s`, 'ok');
 
+        if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+          contentEl.textContent = '[Executing Tools...]';
+          contentEl.style.color = 'var(--soft)';
+
+          for (let tc of assistantMessage.tool_calls) {
+            const fnName = tc.function.name;
+            log('Tool called: ' + fnName);
+            const toolObj = window.registeredTools.find(t => t.schema.function.name === fnName);
+
+            let toolResult = "";
+            if (toolObj) {
+              try {
+                const args = typeof tc.function.arguments === 'string' ? JSON.parse(tc.function.arguments) : tc.function.arguments;
+                const res = await toolObj.fn(args);
+                toolResult = typeof res === 'string' ? res : JSON.stringify(res);
+              } catch (e) {
+                toolResult = "Error executing structure: " + e.message;
+              }
+            } else {
+              toolResult = `Tool "${fnName}" not found locally.`;
+            }
+
+            conversationHistory.push({ role: 'tool', name: fnName, content: toolResult });
+            appendMessage('tool', `🔧 **${fnName}** Output:\n\`\`\`json\n${toolResult}\n\`\`\``);
+          }
+
+          isGenerating = false;
+          log("Feeding tool outcomes back into generator...");
+          return await window.sendMessage(true);
+        }
+
       } catch (err) {
         cursor.remove();
-        contentEl.textContent = '[Error: ' + err.message + ']';
+        contentEl.textContent += '\n[Error: ' + err.message + ']';
         contentEl.style.color = 'var(--soft)';
         log('Generation error: ' + err.message, 'warn');
       }
@@ -1521,11 +1700,17 @@
       const div = document.createElement('div');
       div.className = 'message ' + role;
       const now = new Date().toTimeString().slice(0, 8);
+
+      let avatarStr = 'AI';
+      let nameStr = 'ASSISTANT';
+      if (role === 'user') { avatarStr = 'USR'; nameStr = 'OPERATOR'; }
+      else if (role === 'tool') { avatarStr = 'SYS'; nameStr = 'TOOL EXECUTION'; }
+
       div.innerHTML = `
-      <div class="msg-avatar">${role === 'user' ? 'USR' : 'AI'}</div>
+      <div class="msg-avatar">${avatarStr}</div>
       <div class="msg-body">
         <div class="msg-header">
-          <span class="msg-name">${role === 'user' ? 'OPERATOR' : 'ASSISTANT'}</span>
+          <span class="msg-name">${nameStr}</span>
           <span class="msg-time">${now}</span>
         </div>
         <div class="msg-content"></div>
@@ -1559,6 +1744,62 @@
       el.style.height = 'auto';
       el.style.height = Math.min(el.scrollHeight, 140) + 'px';
     };
+
+    // ── TOOLS MANAGEMENT
+    window.registeredTools = [];
+    window.openToolModal = () => document.getElementById('toolModal').classList.remove('hidden');
+    window.closeToolModal = () => document.getElementById('toolModal').classList.add('hidden');
+
+    window.formatToolCode = () => {
+      const schemaEl = document.getElementById('toolSchemaInput');
+      try {
+        if (schemaEl.value.trim()) schemaEl.value = JSON.stringify(JSON.parse(schemaEl.value.trim()), null, 2);
+      } catch (e) { log('Schema format failed', 'warn'); }
+    };
+
+    window.submitTool = () => {
+      try {
+        const schemaRaw = document.getElementById('toolSchemaInput').value.trim();
+        const codeRaw = document.getElementById('toolCodeInput').value.trim();
+        if (!schemaRaw || !codeRaw) throw new Error("Both schema and code are required.");
+
+        const schema = JSON.parse(schemaRaw);
+        if (!schema.type || !schema.function || !schema.function.name) throw new Error("Invalid schema structure.");
+
+        const fn = eval('(' + codeRaw + ')');
+        if (typeof fn !== 'function') throw new Error("Implementation is not a valid function.");
+
+        window.registeredTools.push({ schema, codeRaw, fn });
+        renderTools();
+        closeToolModal();
+        window.clearChat();
+        log(`Added tool: ${schema.function.name}. Model context reset.`, 'ok');
+      } catch (e) {
+        alert("Configuration Error: " + e.message);
+      }
+    };
+
+    window.removeTool = (index) => {
+      const t = window.registeredTools.splice(index, 1)[0];
+      renderTools();
+      window.clearChat();
+      log(`Removed tool: ${t.schema.function.name}`, 'warn');
+    };
+
+    function renderTools() {
+      const list = document.getElementById('toolsList');
+      if (window.registeredTools.length === 0) {
+        list.innerHTML = '<span style="font-size:11px; color:var(--light)">No tools added.</span>';
+        return;
+      }
+      list.innerHTML = '';
+      window.registeredTools.forEach((t, i) => {
+        const div = document.createElement('div');
+        div.className = 'tool-chip';
+        div.innerHTML = `<span>⚡ ${t.schema.function.name}</span><span class="tool-chip-remove" onclick="removeTool(${i})">✕</span>`;
+        list.appendChild(div);
+      });
+    }
 
     log('Interface ready. Select model and press Load.', 'ok');
   </script>
