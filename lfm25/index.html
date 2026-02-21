@@ -10,6 +10,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap"
     rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <style>
     *,
@@ -611,8 +612,56 @@
       font-size: 14px;
       line-height: 1.65;
       color: var(--char2);
-      white-space: pre-wrap;
       word-break: break-word;
+    }
+
+    .msg-content p,
+    .msg-content ol,
+    .msg-content ul {
+      margin-top: 0;
+      margin-bottom: 0.75em;
+    }
+
+    .msg-content p:last-child,
+    .msg-content ol:last-child,
+    .msg-content ul:last-child {
+      margin-bottom: 0;
+    }
+
+    .msg-content pre {
+      background: var(--bg2);
+      border: 1px solid #e0e0e0;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 13px;
+      margin-bottom: 0.75em;
+    }
+
+    .msg-content code {
+      font-family: var(--mono);
+      background: var(--bg2);
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-size: 13px;
+    }
+
+    .msg-content pre code {
+      background: none;
+      padding: 0;
+    }
+
+    .msg-content ul,
+    .msg-content ol {
+      padding-left: 1.5em;
+    }
+
+    .msg-content blockquote {
+      border-left: 3px solid var(--orange);
+      padding-left: 10px;
+      color: var(--soft);
+      margin-bottom: 0.75em;
     }
 
     .message.user .msg-content {
@@ -620,6 +669,7 @@
       border: 1px solid #e0e0e0;
       padding: 10px 14px;
       color: var(--charcoal);
+      white-space: pre-wrap;
     }
 
     .typing-cursor {
@@ -1402,8 +1452,9 @@
         skip_special_tokens: true,
         callback_function: (token) => {
           outputText += token;
-          contentEl.textContent = outputText;
-          contentEl.appendChild(cursor);
+          contentEl.innerHTML = marked.parse(outputText);
+          const cursorContainer = contentEl.lastElementChild && contentEl.lastElementChild.tagName !== 'PRE' && contentEl.lastElementChild.tagName !== 'UL' && contentEl.lastElementChild.tagName !== 'OL' ? contentEl.lastElementChild : contentEl;
+          cursorContainer.appendChild(cursor);
           currentTokenCount++;
           totalTokensGenerated++;
 
@@ -1479,9 +1530,17 @@
           <span class="msg-name">${role === 'user' ? 'OPERATOR' : 'ASSISTANT'}</span>
           <span class="msg-time">${now}</span>
         </div>
-        <div class="msg-content">${content}</div>
+        <div class="msg-content"></div>
       </div>
     `;
+
+      const contentDiv = div.querySelector('.msg-content');
+      if (role === 'user') {
+        contentDiv.textContent = content;
+      } else {
+        contentDiv.innerHTML = content ? marked.parse(content) : '';
+      }
+
       container.appendChild(div);
       container.scrollTop = container.scrollHeight;
       return div;
