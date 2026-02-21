@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LFM2.5 — Agent Interface</title>
+  <title>Local Web LLM — Agent Interface</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -978,7 +978,7 @@
       <div class="brand-mark">
         <span></span><span></span><span></span><span></span>
       </div>
-      <span class="brand-name">LFM2.5 · Agent Interface</span>
+      <span class="brand-name">Local Web LLM · Agent Interface</span>
     </div>
     <div class="topbar-center">
       <div class="status-dot" id="statusDot"></div>
@@ -1022,7 +1022,7 @@
       <div class="panel-section">
         <div class="section-label">System Prompt</div>
         <textarea class="sys-prompt" id="sysPrompt"
-          rows="4">You are LFM2.5, a Liquid Foundation Model running locally in your browser. Be concise and precise.</textarea>
+          rows="4">You are a helpful AI assistant running locally in your browser. Be concise and precise.</textarea>
       </div>
 
       <div class="panel-section">
@@ -1063,8 +1063,8 @@
 
       <div class="panel-section">
         <div class="section-label">Architecture</div>
-        <div class="spec-row"><span class="spec-key">Type</span><span class="spec-val hl">Liquid FM</span></div>
-        <div class="spec-row"><span class="spec-key">Params</span><span class="spec-val">1.2B</span></div>
+        <div class="spec-row"><span class="spec-key">Type</span><span class="spec-val hl">Web LLM</span></div>
+        <div class="spec-row"><span class="spec-key">Params</span><span class="spec-val">Variable</span></div>
         <div class="spec-row"><span class="spec-key">Precision</span><span class="spec-val">q4</span></div>
         <div class="spec-row"><span class="spec-key">Backend</span><span class="spec-val">WebGPU → WASM</span></div>
         <div class="spec-row"><span class="spec-key">Runtime</span><span class="spec-val">Transformers.js 3.7</span>
@@ -1102,7 +1102,7 @@
         </div>
         <div class="init-title">Select a model<br>and press Load.</div>
         <div class="init-sub">
-          LFM2.5 runs entirely in your browser<br>
+          The models run entirely in your browser<br>
           via WebGPU or WebAssembly.<br>
           No data leaves your device.
         </div>
@@ -1473,10 +1473,10 @@
       div.className = 'message ' + role;
       const now = new Date().toTimeString().slice(0, 8);
       div.innerHTML = `
-      <div class="msg-avatar">${role === 'user' ? 'USR' : 'LFM'}</div>
+      <div class="msg-avatar">${role === 'user' ? 'USR' : 'AI'}</div>
       <div class="msg-body">
         <div class="msg-header">
-          <span class="msg-name">${role === 'user' ? 'OPERATOR' : 'LFM2.5'}</span>
+          <span class="msg-name">${role === 'user' ? 'OPERATOR' : 'ASSISTANT'}</span>
           <span class="msg-time">${now}</span>
         </div>
         <div class="msg-content">${content}</div>
