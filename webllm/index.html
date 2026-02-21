@@ -1038,7 +1038,7 @@
     .modal {
       background: var(--bg2);
       border: 1px solid #d4d4d4;
-      width: 480px;
+      width: 640px;
       max-width: 90%;
       display: flex;
       flex-direction: column;
@@ -1350,34 +1350,33 @@
 
   <div id="toolModal" class="modal-overlay hidden">
     <div class="modal">
-      <div class="modal-header">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
         <span class="modal-title">Create Function (Tool)</span>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span
+            style="font-size:11px; color:var(--light); font-family:var(--mono); text-transform:uppercase;">Examples:</span>
+          <button class="clear-btn"
+            style="width:auto; padding:4px 8px; min-height:0; border-radius:12px; font-size:10px"
+            onclick="loadToolExample('weather')">Weather</button>
+          <button class="clear-btn"
+            style="width:auto; padding:4px 8px; min-height:0; border-radius:12px; font-size:10px"
+            onclick="loadToolExample('stock')">Stocks</button>
+          <button class="clear-btn"
+            style="width:auto; padding:4px 8px; min-height:0; border-radius:12px; font-size:10px"
+            onclick="loadToolExample('calendar')">Calendar</button>
+        </div>
       </div>
       <div class="modal-body">
         <div class="input-lbl">JSON Schema</div>
-        <textarea id="toolSchemaInput" class="sys-prompt" rows="7"
-          style="font-size:11px; white-space:pre; overflow-x:auto;">{
-  "type": "function",
-  "function": {
-    "name": "get_weather",
-    "description": "Get current weather updates",
-    "parameters": {
-      "type": "object",
-      "properties": { "location": { "type": "string" } },
-      "required": ["location"]
-    }
-  }
-}</textarea>
+        <textarea id="toolSchemaInput" class="sys-prompt" rows="8"
+          style="font-size:11px; white-space:pre; overflow-x:auto;"></textarea>
 
         <div class="input-lbl" style="margin-top:var(--sp2); display:flex; justify-content:space-between;">
           <span>Implementation (JavaScript)</span>
           <span style="cursor:pointer; color:var(--orange); font-size:10px" onclick="formatToolCode()">Format</span>
         </div>
-        <textarea id="toolCodeInput" class="sys-prompt" rows="4"
-          style="font-size:11px; white-space:pre; overflow-x:auto;">async ({ location }) => {
-  // Call real API here
-  return { location, temperature: "22°C", condition: "Sunny" };
-}</textarea>
+        <textarea id="toolCodeInput" class="sys-prompt" rows="6"
+          style="font-size:11px; white-space:pre; overflow-x:auto;"></textarea>
       </div>
       <div class="modal-footer">
         <button class="clear-btn" style="width:auto; padding:6px 16px; min-height:0"
@@ -1950,22 +1949,71 @@
 
     // ── TOOLS MANAGEMENT
     window.registeredTools = [];
+
+    window.toolExamples = {
+      weather: {
+        schema: {
+          type: "function",
+          function: {
+            name: "get_weather",
+            description: "Get current weather updates for a given location",
+            parameters: {
+              type: "object",
+              properties: { location: { type: "string", description: "City name, e.g. Paris" } },
+              required: ["location"]
+            }
+          }
+        },
+        code: `async ({ location }) => {\n  // Mock API call\n  const temps = { "Paris": "18°C", "New York": "24°C", "Tokyo": "22°C", "London": "15°C" };\n  return { location, temperature: temps[location] || "20°C", condition: "Sunny" };\n}`
+      },
+      stock: {
+        schema: {
+          type: "function",
+          function: {
+            name: "get_stock_price",
+            description: "Get the current stock price for a given ticker symbol",
+            parameters: {
+              type: "object",
+              properties: { ticker: { type: "string", description: "Stock ticker, e.g. AAPL" } },
+              required: ["ticker"]
+            }
+          }
+        },
+        code: `async ({ ticker }) => {\n  // Mock API call\n  const prices = { "AAPL": "$150.00", "GOOGL": "$2800.00", "MSFT": "$300.00" };\n  return { ticker, price: prices[ticker.toUpperCase()] || "$100.00", currency: "USD" };\n}`
+      },
+      calendar: {
+        schema: {
+          type: "function",
+          function: {
+            name: "create_calendar_event",
+            description: "Create a new event in the user's calendar",
+            parameters: {
+              type: "object",
+              properties: {
+                title: { type: "string", description: "Event title" },
+                date: { type: "string", description: "Date of the event (YYYY-MM-DD)" },
+                time: { type: "string", description: "Time of the event (HH:MM)" }
+              },
+              required: ["title", "date", "time"]
+            }
+          }
+        },
+        code: `async ({ title, date, time }) => {\n  // Mock DB interaction\n  return { success: true, event_id: "evt_" + Math.random().toString(36).substr(2, 6), title, scheduled_for: \`\${date} at \${time}\` };\n}`
+      }
+    };
+
+    window.loadToolExample = (key) => {
+      const ex = window.toolExamples[key];
+      if (ex) {
+        document.getElementById('toolSchemaInput').value = JSON.stringify(ex.schema, null, 2);
+        document.getElementById('toolCodeInput').value = ex.code;
+      }
+    };
+
     window.openToolModal = () => {
-      document.getElementById('toolSchemaInput').value = `{
-  "type": "function",
-  "function": {
-    "name": "get_weather",
-    "description": "Get current weather updates",
-    "parameters": {
-      "type": "object",
-      "properties": { "location": { "type": "string" } },
-      "required": ["location"]
-    }
-  }
-}`;
-      document.getElementById('toolCodeInput').value = `async ({ location }) => {
-  return { location, temperature: "22°C", condition: "Sunny" };
-}`;
+      if (!document.getElementById('toolSchemaInput').value.trim()) {
+        window.loadToolExample('weather');
+      }
       document.getElementById('toolModal').classList.remove('hidden');
     };
     window.closeToolModal = () => document.getElementById('toolModal').classList.add('hidden');
