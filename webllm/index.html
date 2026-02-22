@@ -1090,12 +1090,19 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      cursor: pointer;
+      transition: border-color var(--dur);
+    }
+
+    .tool-chip:hover {
+      border-color: var(--char2);
     }
 
     .tool-chip-remove {
       cursor: pointer;
       color: var(--light);
       font-weight: bold;
+      margin-left: 8px;
     }
 
     .tool-chip-remove:hover {
@@ -1410,6 +1417,7 @@
     let genStartTime = null;
     let currentTokenCount = 0;
     let throughputHistory = Array(20).fill(0);
+    let currentEditingIndex = -1;
     const sessionStart = Date.now();
 
     // ── Init sliders
@@ -2064,13 +2072,30 @@
       }
     };
 
-    window.openToolModal = () => {
-      if (!document.getElementById('toolSchemaInput').value.trim()) {
-        window.loadToolExample('weather');
+    window.openToolModal = (index = -1) => {
+      const modalTitle = document.querySelector('.modal-title');
+      const schemaInput = document.getElementById('toolSchemaInput');
+      const codeInput = document.getElementById('toolCodeInput');
+
+      currentEditingIndex = index;
+
+      if (index !== -1) {
+        const tool = window.registeredTools[index];
+        schemaInput.value = JSON.stringify(tool.schema, null, 2);
+        codeInput.value = tool.codeRaw;
+        modalTitle.textContent = "Edit Function (Tool)";
+      } else {
+        if (!schemaInput.value.trim()) {
+          window.loadToolExample('weather');
+        }
+        modalTitle.textContent = "Create Function (Tool)";
       }
       document.getElementById('toolModal').classList.remove('hidden');
     };
-    window.closeToolModal = () => document.getElementById('toolModal').classList.add('hidden');
+    window.closeToolModal = () => {
+      document.getElementById('toolModal').classList.add('hidden');
+      currentEditingIndex = -1;
+    };
 
     window.formatToolCode = () => {
       const schemaEl = document.getElementById('toolSchemaInput');
@@ -2091,10 +2116,16 @@
         const fn = eval('(' + codeRaw + ')');
         if (typeof fn !== 'function') throw new Error("Implementation is not a valid function.");
 
-        window.registeredTools.push({ schema, codeRaw, fn });
+        if (currentEditingIndex !== -1) {
+          window.registeredTools[currentEditingIndex] = { schema, codeRaw, fn };
+          log(`Updated tool: ${schema.function.name}.`, 'ok');
+        } else {
+          window.registeredTools.push({ schema, codeRaw, fn });
+          log(`Added tool: ${schema.function.name}.`, 'ok');
+        }
+
         renderTools();
         closeToolModal();
-        log(`Added tool: ${schema.function.name}.`, 'ok');
       } catch (e) {
         alert("Configuration Error: " + e.message);
       }
@@ -2116,7 +2147,8 @@
       window.registeredTools.forEach((t, i) => {
         const div = document.createElement('div');
         div.className = 'tool-chip';
-        div.innerHTML = `<span>⚡ ${t.schema.function.name}</span><span class="tool-chip-remove" onclick="removeTool(${i})">✕</span>`;
+        div.onclick = () => window.openToolModal(i);
+        div.innerHTML = `<span>⚡ ${t.schema.function.name}</span><span class="tool-chip-remove" onclick="event.stopPropagation(); removeTool(${i})">✕</span>`;
         list.appendChild(div);
       });
     }
