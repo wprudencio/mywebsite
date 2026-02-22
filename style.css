@@ -82,6 +82,7 @@ a:hover {
 .section-content {
   display: grid;
   gap: 16px;
+  width: 100%;
 }
 
 section.photo .section-content {
@@ -94,6 +95,7 @@ section.photo img {
   object-fit: cover;
   border-radius: 8px;
   transition: transform 0.3s ease;
+  display: block;
 }
 
 section.photo img:hover {
@@ -106,10 +108,12 @@ section.music .section-content {
 
 section.music iframe {
   width: 100%;
+  max-width: 100%;
   aspect-ratio: 16 / 9;
   height: auto;
   border-radius: 8px;
   border: none;
+  display: block;
 }
 
 footer {
@@ -144,8 +148,13 @@ footer {
     justify-content: center;
   }
 
-  section.music .section-content {
+  section.music .section-content,
+  section.photo .section-content {
     grid-template-columns: 1fr;
+  }
+
+  section.music iframe {
+    aspect-ratio: 16 / 9;
   }
 }
 
@@ -158,16 +167,29 @@ footer {
     font-size: 1.5rem;
   }
 
-  section.photo .section-content {
-    grid-template-columns: 1fr;
-  }
-
   .profile-picture img {
-    width: 160px;
-    height: 160px;
+    width: 140px;
+    height: 140px;
   }
 
   section {
     margin-top: 40px;
   }
+
+  .social-links {
+    gap: 8px;
+  }
+
+  .social-links a {
+    font-size: 0.9rem;
+  }
+}
+
+/* Social links separators */
+.social-links a:not(:last-child)::after {
+  content: ".";
+  margin-left: 12px;
+  color: #faffff;
+  pointer-events: none;
+  opacity: 0.5;
 }
