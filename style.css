@@ -35,6 +35,14 @@ section {
   align-items: center;
 }
 
+.social-links a {
+  color: #faffff;
+}
+
+.social-links a:hover {
+  border-bottom-color: #faffff;
+}
+
 a {
   color: #62ffa1;
   text-decoration: none;
