@@ -1391,7 +1391,7 @@
         <button class="clear-btn" style="width:auto; padding:6px 16px; min-height:0"
           onclick="closeToolModal()">Cancel</button>
         <button class="send-btn" style="height:auto; padding:6px 16px; margin:0; line-height:1"
-          onclick="submitTool()">Save & Reload</button>
+          onclick="submitTool()">Save Tool</button>
       </div>
     </div>
   </div>
@@ -2094,8 +2094,7 @@
         window.registeredTools.push({ schema, codeRaw, fn });
         renderTools();
         closeToolModal();
-        window.clearChat();
-        log(`Added tool: ${schema.function.name}. Context reset.`, 'ok');
+        log(`Added tool: ${schema.function.name}.`, 'ok');
       } catch (e) {
         alert("Configuration Error: " + e.message);
       }
@@ -2104,7 +2103,6 @@
     window.removeTool = (index) => {
       const t = window.registeredTools.splice(index, 1)[0];
       renderTools();
-      window.clearChat();
       log(`Removed tool: ${t.schema.function.name}`, 'warn');
     };
 
