@@ -1677,6 +1677,7 @@
         const topP = parseFloat(document.getElementById('topP').value);
         const repPenalty = parseFloat(document.getElementById('repPenalty').value);
 
+        console.log('Sending to LLM:', msgArray);
         const result = await generator(msgArray, {
           max_new_tokens: maxTokens,
           tools: tools.length > 0 ? tools : undefined,
