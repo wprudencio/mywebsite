@@ -1140,7 +1140,7 @@
         <select class="model-select" id="modelSelect">
           <option value="onnx-community/LFM2-1.2B-ONNX">LFM2-1.2B (base)</option>
           <option value="onnx-community/LFM2-1.2B-Tool-ONNX">LFM2-1.2B (tool)</option>
-          <option value="onnx-community/Qwen3-0.6B-ONNX">Qwen3-0.6B-ONNX</option>
+          <option value="onnx-community/LFM2-1.2B-Instruct-ONNX">LFM2-1.2B (instruct)</option>
         </select>
         <button class="load-btn" id="loadBtn" onclick="loadModel()">
           Load Model
@@ -1519,7 +1519,7 @@
         label.textContent = 'Trying WebGPU...';
 
         generator = await pipeline('text-generation', modelId, {
-          dtype: 'q4f16',
+          dtype: 'q4',
           device: 'webgpu',
           progress_callback: onProgress
         }).catch(async gpuErr => {
