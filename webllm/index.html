@@ -1139,7 +1139,7 @@
         <div class="section-label">Model</div>
         <select class="model-select" id="modelSelect">
           <option value="onnx-community/LFM2-1.2B-ONNX">LFM2-1.2B (base)</option>
-          <option value="onnx-community/LFM2-1.2B-ONNX">LFM2-1.2B-Instruct</option>
+          <option value="onnx-community/LFM2-1.2B-Tool-ONNX">LFM2-1.2B (tool)</option>
           <option value="onnx-community/Qwen3-0.6B-ONNX">Qwen3-0.6B-ONNX</option>
         </select>
         <button class="load-btn" id="loadBtn" onclick="loadModel()">
@@ -1684,6 +1684,7 @@
           do_sample: temp > 0,
           temperature: temp > 0 ? temp : undefined,
           top_p: topP,
+          top_k: 50,
           repetition_penalty: repPenalty,
           return_full_text: false,
           streamer
