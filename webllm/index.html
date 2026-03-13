@@ -1218,7 +1218,7 @@
         <div class="spec-row"><span class="spec-key">Params</span><span class="spec-val">Variable</span></div>
         <div class="spec-row"><span class="spec-key">Precision</span><span class="spec-val">q4</span></div>
         <div class="spec-row"><span class="spec-key">Backend</span><span class="spec-val">WebGPU → WASM</span></div>
-        <div class="spec-row"><span class="spec-key">Runtime</span><span class="spec-val">Transformers.js 3.7</span>
+        <div class="spec-row"><span class="spec-key">Runtime</span><span class="spec-val">Transformers.js 4</span>
         </div>
       </div>
 
@@ -1405,13 +1405,18 @@
   </div>
 
   <script type="module">
-    import { pipeline, TextStreamer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js';
-
-    // Make available globally for onclick handlers
-    window._tf = { pipeline, TextStreamer, env };
+    // ── Transformers.js v4 imports
+    // v4 uses a different CDN path and ships model-specific classes
+    import {
+      AutoTokenizer,
+      AutoModelForCausalLM,
+      TextStreamer,
+      env
+    } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.0-next.7/dist/transformers.min.js';
 
     // ── State
-    let generator = null;
+    let tokenizer = null;
+    let model = null;
     let conversationHistory = [];
     let isGenerating = false;
     let totalTokensGenerated = 0;
@@ -1465,9 +1470,8 @@
       if (ls.children.length > 120) ls.firstChild.remove();
     }
 
-    // ── LOAD MODEL
+    // ── LOAD MODEL (v4 API: AutoTokenizer + AutoModelForCausalLM)
     window.loadModel = async function () {
-      const { pipeline, TextStreamer, env } = window._tf;
       const btn = document.getElementById('loadBtn');
       const wrap = document.getElementById('progressWrap');
       const fill = document.getElementById('progressFill');
@@ -1486,20 +1490,12 @@
       const onProgress = (progress) => {
         if (progress.status === 'downloading' || progress.status === 'progress') {
           fileProgress.set(progress.file, progress.progress || 0);
-
-          // Calculate average progress of all tracked files
           let total = 0;
-          for (const p of fileProgress.values()) {
-            total += p;
-          }
+          for (const p of fileProgress.values()) total += p;
           const avg = Math.round(total / fileProgress.size);
-
           fill.style.width = avg + '%';
           pct.textContent = avg + '%';
-
-          if (progress.file) {
-            label.textContent = `Downloading ${progress.file.split('/').pop()}`;
-          }
+          if (progress.file) label.textContent = `Downloading ${progress.file.split('/').pop()}`;
           if (avg % 10 === 0 && avg > 0) log(`Downloading · ${avg}%`);
         } else if (progress.status === 'initiate') {
           label.textContent = 'Initializing...';
@@ -1515,26 +1511,36 @@
         }
       };
 
+      // ── v4: Load tokenizer and model separately via AutoTokenizer / AutoModelForCausalLM
+      const loadOpts = { progress_callback: onProgress };
+
       try {
+        log('Loading tokenizer...');
+        label.textContent = 'Loading tokenizer...';
+        tokenizer = await AutoTokenizer.from_pretrained(modelId, loadOpts);
+
         log('Trying WebGPU backend...');
         label.textContent = 'Trying WebGPU...';
 
-        generator = await pipeline('text-generation', modelId, {
-          dtype: 'q4',
-          device: 'webgpu',
-          progress_callback: onProgress
-        }).catch(async gpuErr => {
-          // log('WebGPU failed: ' + gpuErr.message.slice(0,60), 'warn');
-          log('Falling back to WASM...', 'warn');
+        try {
+          model = await AutoModelForCausalLM.from_pretrained(modelId, {
+            dtype: 'q4',
+            device: 'webgpu',
+            ...loadOpts
+          });
+          log('WebGPU backend loaded.', 'ok');
+        } catch (gpuErr) {
+          log('WebGPU failed, falling back to WASM...', 'warn');
           label.textContent = 'WebGPU unavailable — switching to WASM...';
           fill.style.width = '0%';
           pct.textContent = '0%';
-          return await pipeline('text-generation', modelId, {
+          model = await AutoModelForCausalLM.from_pretrained(modelId, {
             dtype: 'q4f16',
             device: 'wasm',
-            progress_callback: onProgress
+            ...loadOpts
           });
-        });
+          log('WASM backend loaded.', 'ok');
+        }
 
         // SUCCESS
         fill.style.width = '100%';
@@ -1563,9 +1569,9 @@
       }
     };
 
-    // ── SEND MESSAGE
+    // ── SEND MESSAGE (v4: tokenizer.apply_chat_template + model.generate)
     window.sendMessage = async function (isFollowUp = false) {
-      if (!generator || isGenerating) return;
+      if (!tokenizer || !model || isGenerating) return;
 
       const sysPrompt = document.getElementById('sysPrompt').value.trim();
       const msgContainer = document.getElementById('messages');
@@ -1589,8 +1595,6 @@
       const tools = window.registeredTools.map(t => t.schema);
       if (tools.length > 0) {
         const toolDefs = tools.map(t => JSON.stringify(t, null, 2)).join(',\n');
-
-        // Build a concrete example using the first tool
         const firstFn = tools[0].function;
         const exampleArgs = {};
         if (firstFn.parameters && firstFn.parameters.properties) {
@@ -1599,7 +1603,6 @@
           }
         }
         const exampleCall = JSON.stringify({ name: firstFn.name, arguments: exampleArgs });
-
         fullSysPrompt += `\n\nYou have access to the following tools:\n${toolDefs}\n\nWhen the user's request requires using a tool, respond ONLY with a JSON object (no explanation, no markdown) like this:\n${exampleCall}\n\nReplace the argument values with the actual values from the user's request. Only call tools that are listed above. After receiving the tool result, interpret it and respond to the user in natural language.`;
       }
 
@@ -1614,118 +1617,110 @@
       contentEl.appendChild(cursor);
 
       let outputText = '';
-      let rawOutputText = ''; // includes special tokens for tool call parsing
+      let rawOutputText = '';
       currentTokenCount = 0;
       genStartTime = Date.now();
       log(`Generating · max_tokens=${document.getElementById('maxTokens').value} · temp=${document.getElementById('temperature').value}`);
 
-      const streamer = new window._tf.TextStreamer(generator.tokenizer, {
-        skip_prompt: true,
-        skip_special_tokens: false,
-        callback_function: (token) => {
-          rawOutputText += token;
-          // Strip common special tokens for display
-          const displayToken = token
-            .replace(/<\|im_end\|>/g, '')
-            .replace(/<\|im_start\|>/g, '')
-            .replace(/<\|endoftext\|>/g, '')
-            .replace(/<\|tool_call_start\|>/g, '')
-            .replace(/<\|tool_call_end\|>/g, '');
-          outputText += displayToken;
-
-          // Check if we're inside a tool_call block — don't render it visually
-          const inQwenToolCall = rawOutputText.includes('<tool_call>') && !rawOutputText.includes('</tool_call>');
-          const inLfmToolCall = rawOutputText.includes('<|tool_call_start|>') && !rawOutputText.includes('<|tool_call_end|>');
-          const inToolCall = inQwenToolCall || inLfmToolCall;
-          if (!inToolCall) {
-            // Clean display: remove tool_call blocks from visible text
-            const cleanDisplay = outputText
-              .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '[Calling tool...]')
-              .replace(/\[[^\]]*\([^)]*\)\]/g, '[Calling tool...]')  // Pythonic calls like [fn(args)]
-              .trim();
-            if (cleanDisplay) {
-              contentEl.innerHTML = marked.parse(cleanDisplay);
-            }
-          } else {
-            contentEl.innerHTML = '<span style="color:var(--orange)">⚡ Preparing tool call...</span>';
-          }
-          const cursorContainer = contentEl.lastElementChild && contentEl.lastElementChild.tagName !== 'PRE' && contentEl.lastElementChild.tagName !== 'UL' && contentEl.lastElementChild.tagName !== 'OL' ? contentEl.lastElementChild : contentEl;
-          cursorContainer.appendChild(cursor);
-          currentTokenCount++;
-          totalTokensGenerated++;
-
-          const elapsed = (Date.now() - genStartTime) / 1000;
-          if (elapsed > 0) {
-            const tps = (currentTokenCount / elapsed).toFixed(1);
-            document.getElementById('liveSpeed').textContent = tps;
-            document.getElementById('statSpeed').textContent = tps;
-            document.getElementById('mTps').textContent = tps;
-            document.getElementById('bTps').style.width = Math.min(100, (parseFloat(tps) / 40) * 100) + '%';
-            throughputHistory.push(parseFloat(tps));
-            if (throughputHistory.length > 20) throughputHistory.shift();
-          }
-
-          document.getElementById('statTokens').textContent = totalTokensGenerated;
-          document.getElementById('mTotal').textContent = totalTokensGenerated;
-          document.getElementById('bTotal').style.width = Math.min(100, (totalTokensGenerated / 3000) * 100) + '%';
-          msgContainer.scrollTop = msgContainer.scrollHeight;
-        }
-      });
+      const maxTokens = parseInt(document.getElementById('maxTokens').value);
+      const temp = parseFloat(document.getElementById('temperature').value);
+      const topP = parseFloat(document.getElementById('topP').value);
+      const repPenalty = parseFloat(document.getElementById('repPenalty').value);
 
       try {
-        const maxTokens = parseInt(document.getElementById('maxTokens').value);
-        const temp = parseFloat(document.getElementById('temperature').value);
-        const topP = parseFloat(document.getElementById('topP').value);
-        const repPenalty = parseFloat(document.getElementById('repPenalty').value);
+        // ── v4: apply_chat_template → tokenize → generate → decode
+        const chatText = tokenizer.apply_chat_template(msgArray, {
+          tokenize: false,
+          add_generation_prompt: true,
+        });
 
-        console.log('Sending to LLM:', msgArray);
-        const result = await generator(msgArray, {
+        const inputs = tokenizer(chatText, { return_tensors: 'pt' });
+        const inputIds = inputs.input_ids;
+        const inputLength = inputIds.dims[1];
+
+        const streamer = new TextStreamer(tokenizer, {
+          skip_prompt: true,
+          skip_special_tokens: false,
+          callback_function: (token) => {
+            rawOutputText += token;
+            const displayToken = token
+              .replace(/<\|im_end\|>/g, '')
+              .replace(/<\|im_start\|>/g, '')
+              .replace(/<\|endoftext\|>/g, '')
+              .replace(/<\|tool_call_start\|>/g, '')
+              .replace(/<\|tool_call_end\|>/g, '');
+            outputText += displayToken;
+
+            const inQwenToolCall = rawOutputText.includes('<tool_call>') && !rawOutputText.includes('</tool_call>');
+            const inLfmToolCall = rawOutputText.includes('<|tool_call_start|>') && !rawOutputText.includes('<|tool_call_end|>');
+            const inToolCall = inQwenToolCall || inLfmToolCall;
+
+            if (!inToolCall) {
+              const cleanDisplay = outputText
+                .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '[Calling tool...]')
+                .replace(/\[[^\]]*\([^)]*\)\]/g, '[Calling tool...]')
+                .trim();
+              if (cleanDisplay) contentEl.innerHTML = marked.parse(cleanDisplay);
+            } else {
+              contentEl.innerHTML = '<span style="color:var(--orange)">⚡ Preparing tool call...</span>';
+            }
+
+            const cursorContainer = contentEl.lastElementChild &&
+              contentEl.lastElementChild.tagName !== 'PRE' &&
+              contentEl.lastElementChild.tagName !== 'UL' &&
+              contentEl.lastElementChild.tagName !== 'OL'
+              ? contentEl.lastElementChild : contentEl;
+            cursorContainer.appendChild(cursor);
+
+            currentTokenCount++;
+            totalTokensGenerated++;
+
+            const elapsed = (Date.now() - genStartTime) / 1000;
+            if (elapsed > 0) {
+              const tps = (currentTokenCount / elapsed).toFixed(1);
+              document.getElementById('liveSpeed').textContent = tps;
+              document.getElementById('statSpeed').textContent = tps;
+              document.getElementById('mTps').textContent = tps;
+              document.getElementById('bTps').style.width = Math.min(100, (parseFloat(tps) / 40) * 100) + '%';
+              throughputHistory.push(parseFloat(tps));
+              if (throughputHistory.length > 20) throughputHistory.shift();
+            }
+
+            document.getElementById('statTokens').textContent = totalTokensGenerated;
+            document.getElementById('mTotal').textContent = totalTokensGenerated;
+            document.getElementById('bTotal').style.width = Math.min(100, (totalTokensGenerated / 3000) * 100) + '%';
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+          }
+        });
+
+        // ── v4 generate call — returns output token ids directly
+        const outputIds = await model.generate({
+          ...inputs,
           max_new_tokens: maxTokens,
-          tools: tools.length > 0 ? tools : undefined,
           do_sample: temp > 0,
           temperature: temp > 0 ? temp : undefined,
           top_p: topP,
           top_k: 50,
           repetition_penalty: repPenalty,
-          return_full_text: false,
-          streamer
+          streamer,
         });
 
         cursor.remove();
 
-        // --- Parse tool calls from multiple sources ---
-        let toolCalls = [];
+        // ── Parse tool calls from raw streamed text
+        let toolCalls = parseToolCalls(rawOutputText);
+        if (toolCalls.length > 0) log(`Parsed ${toolCalls.length} tool call(s) from raw output`, 'ok');
 
-        // 1. Check pipeline structured result
-        let assistantMessage = null;
-        if (result && result[0] && Array.isArray(result[0].generated_text)) {
-          assistantMessage = result[0].generated_text[result[0].generated_text.length - 1];
-          if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-            toolCalls = assistantMessage.tool_calls;
-            log('Tool calls found via pipeline result', 'ok');
-          }
-        }
-
-        // 2. Parse raw text for <tool_call> blocks (Qwen/Hermes style)
-        if (toolCalls.length === 0) {
-          toolCalls = parseToolCalls(rawOutputText);
-          if (toolCalls.length > 0) {
-            log(`Parsed ${toolCalls.length} tool call(s) from raw output`, 'ok');
-          }
-        }
-
-        // Build the clean content (without tool call markup)
+        // If no tool calls found via text, check if output tokens contain structured calls
+        // (v4 does not return a structured messages array like pipeline did in v3)
         const cleanContent = outputText
           .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
-          .replace(/\[[^\]]*\([^)]*\)\]/g, '')  // Pythonic calls
+          .replace(/\[[^\]]*\([^)]*\)\]/g, '')
           .replace(/\[Calling tool\.\.\.\]/g, '')
           .trim();
 
         if (toolCalls.length > 0) {
-          // We have tool calls to execute
-          const histMsg = assistantMessage && assistantMessage.tool_calls
-            ? assistantMessage
-            : { role: 'assistant', content: cleanContent || null, tool_calls: toolCalls };
+          const histMsg = { role: 'assistant', content: cleanContent || null, tool_calls: toolCalls };
           conversationHistory.push(histMsg);
 
           contentEl.innerHTML = '<span style="color:var(--orange)">⚡ Executing tools...</span>';
@@ -1738,7 +1733,9 @@
             let toolResult = '';
             if (toolObj) {
               try {
-                const args = typeof tc.function.arguments === 'string' ? JSON.parse(tc.function.arguments) : tc.function.arguments;
+                const args = typeof tc.function.arguments === 'string'
+                  ? JSON.parse(tc.function.arguments)
+                  : tc.function.arguments;
                 log('Tool args: ' + JSON.stringify(args));
                 const res = await toolObj.fn(args);
                 toolResult = typeof res === 'string' ? res : JSON.stringify(res);
@@ -1753,14 +1750,7 @@
             appendMessage('tool', `🔧 **${fnName}** returned:\n\`\`\`json\n${toolResult}\n\`\`\``);
           }
 
-          // Update stats
-          const userCount = conversationHistory.filter(m => m.role === 'user').length;
-          document.getElementById('statMessages').textContent = userCount;
-          const ctxEst = conversationHistory.reduce((a, m) => a + Math.round((m.content || '').length / 4), 0);
-          document.getElementById('ctxTokens').textContent = ctxEst;
-          document.getElementById('mCtx').textContent = ctxEst;
-          document.getElementById('bCtx').style.width = Math.min(100, (ctxEst / 8000) * 100) + '%';
-
+          updateStats();
           const finalTps = (currentTokenCount / ((Date.now() - genStartTime) / 1000)).toFixed(1);
           log(`Done · ${currentTokenCount} tokens · ${finalTps} tok/s`, 'ok');
 
@@ -1769,20 +1759,10 @@
           return await window.sendMessage(true);
 
         } else {
-          // Normal text response, no tool calls
-          if (cleanContent) {
-            contentEl.innerHTML = marked.parse(cleanContent);
-          }
+          if (cleanContent) contentEl.innerHTML = marked.parse(cleanContent);
           conversationHistory.push({ role: 'assistant', content: cleanContent || outputText });
 
-          const userCount = conversationHistory.filter(m => m.role === 'user').length;
-          document.getElementById('statMessages').textContent = userCount;
-
-          const ctxEst = conversationHistory.reduce((a, m) => a + Math.round((m.content || '').length / 4), 0);
-          document.getElementById('ctxTokens').textContent = ctxEst;
-          document.getElementById('mCtx').textContent = ctxEst;
-          document.getElementById('bCtx').style.width = Math.min(100, (ctxEst / 8000) * 100) + '%';
-
+          updateStats();
           const finalTps = (currentTokenCount / ((Date.now() - genStartTime) / 1000)).toFixed(1);
           log(`Done · ${currentTokenCount} tokens · ${finalTps} tok/s`, 'ok');
         }
@@ -1799,6 +1779,15 @@
       document.getElementById('userInput').focus();
     };
 
+    function updateStats() {
+      const userCount = conversationHistory.filter(m => m.role === 'user').length;
+      document.getElementById('statMessages').textContent = userCount;
+      const ctxEst = conversationHistory.reduce((a, m) => a + Math.round((m.content || '').length / 4), 0);
+      document.getElementById('ctxTokens').textContent = ctxEst;
+      document.getElementById('mCtx').textContent = ctxEst;
+      document.getElementById('bCtx').style.width = Math.min(100, (ctxEst / 8000) * 100) + '%';
+    }
+
     // ── APPEND MESSAGE
     function appendMessage(role, content) {
       const container = document.getElementById('messages');
@@ -1812,15 +1801,15 @@
       else if (role === 'tool') { avatarStr = 'SYS'; nameStr = 'TOOL EXECUTION'; }
 
       div.innerHTML = `
-      <div class="msg-avatar">${avatarStr}</div>
-      <div class="msg-body">
-        <div class="msg-header">
-          <span class="msg-name">${nameStr}</span>
-          <span class="msg-time">${now}</span>
+        <div class="msg-avatar">${avatarStr}</div>
+        <div class="msg-body">
+          <div class="msg-header">
+            <span class="msg-name">${nameStr}</span>
+            <span class="msg-time">${now}</span>
+          </div>
+          <div class="msg-content"></div>
         </div>
-        <div class="msg-content"></div>
-      </div>
-    `;
+      `;
 
       const contentDiv = div.querySelector('.msg-content');
       if (role === 'user') {
@@ -1851,10 +1840,6 @@
     };
 
     // ── PARSE TOOL CALLS from raw text
-    // Supports:
-    //   Qwen-style:  <tool_call>{"name":..., "arguments":...}</tool_call>
-    //   LFM2.5-style: <|tool_call_start|>[fn_name(arg="val")]<|tool_call_end|>  (Pythonic)
-    //   LFM2.5 JSON: <|tool_call_start|>{"name":..., "arguments":...}<|tool_call_end|>
     function parseToolCalls(rawText) {
       const calls = [];
       let match;
@@ -1865,12 +1850,7 @@
         try {
           const parsed = JSON.parse(match[1].trim());
           if (parsed.name) {
-            calls.push({
-              function: {
-                name: parsed.name,
-                arguments: parsed.arguments || {}
-              }
-            });
+            calls.push({ function: { name: parsed.name, arguments: parsed.arguments || {} } });
           }
         } catch (e) {
           log('Failed to parse Qwen tool_call JSON: ' + e.message, 'warn');
@@ -1882,35 +1862,25 @@
         const lfmRegex = /<\|tool_call_start\|>\s*([\s\S]*?)\s*<\|tool_call_end\|>/g;
         while ((match = lfmRegex.exec(rawText)) !== null) {
           const block = match[1].trim();
-
-          // Try JSON first
           try {
             const parsed = JSON.parse(block);
             if (parsed.name) {
-              calls.push({
-                function: {
-                  name: parsed.name,
-                  arguments: parsed.arguments || parsed.parameters || {}
-                }
-              });
+              calls.push({ function: { name: parsed.name, arguments: parsed.arguments || parsed.parameters || {} } });
               continue;
             }
           } catch (e) { /* not JSON, try Pythonic */ }
 
-          // Parse Pythonic: [func_name(key="value", key2=123)] or func_name(key="value")
           const pyMatches = block.matchAll(/([a-zA-Z_][a-zA-Z0-9_]*)\(([^)]*)\)/g);
           for (const pm of pyMatches) {
             const fnName = pm[1];
             const argsStr = pm[2].trim();
             const args = {};
             if (argsStr) {
-              // Parse key=value pairs, handling quoted strings and numbers
               const argRegex = /([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^,\s)]+))/g;
               let argMatch;
               while ((argMatch = argRegex.exec(argsStr)) !== null) {
                 const key = argMatch[1];
                 const val = argMatch[2] ?? argMatch[3] ?? argMatch[4];
-                // Try parsing as number/bool
                 if (val === 'true') args[key] = true;
                 else if (val === 'false') args[key] = false;
                 else if (val === 'None' || val === 'null') args[key] = null;
@@ -1930,34 +1900,22 @@
           try {
             const parsed = JSON.parse(match[1].trim());
             if (parsed.name && (parsed.arguments || parsed.parameters)) {
-              calls.push({
-                function: {
-                  name: parsed.name,
-                  arguments: parsed.arguments || parsed.parameters || {}
-                }
-              });
+              calls.push({ function: { name: parsed.name, arguments: parsed.arguments || parsed.parameters || {} } });
             }
           } catch (e) { /* ignore */ }
         }
       }
 
-      // Pattern 4: Raw JSON object in output (no wrappers) — for models instructed via system prompt
+      // Pattern 4: Raw JSON object with "name" + "arguments"
       if (calls.length === 0) {
-        // Try to find any JSON object with "name" in the text
         const jsonRegex = /\{[^{}]*"name"\s*:\s*"([^"]+)"[^{}]*"arguments"\s*:\s*(\{[^{}]*\})[^{}]*\}/g;
         while ((match = jsonRegex.exec(rawText)) !== null) {
           try {
             const parsed = JSON.parse(match[0]);
             if (parsed.name) {
-              // Validate it's actually one of our registered tools
               const isRegistered = window.registeredTools.some(t => t.schema.function.name === parsed.name);
               if (isRegistered) {
-                calls.push({
-                  function: {
-                    name: parsed.name,
-                    arguments: parsed.arguments || parsed.parameters || {}
-                  }
-                });
+                calls.push({ function: { name: parsed.name, arguments: parsed.arguments || parsed.parameters || {} } });
               }
             }
           } catch (e) { /* ignore */ }
@@ -1984,7 +1942,7 @@
             }
           }
         },
-        code: `async ({ location }) => {\n  // Mock API call\n  const temps = { "Paris": "18°C", "New York": "24°C", "Tokyo": "22°C", "London": "15°C" };\n  return { location, temperature: temps[location] || "20°C", condition: "Sunny" };\n}`
+        code: `async ({ location }) => {\n  const temps = { "Paris": "18°C", "New York": "24°C", "Tokyo": "22°C", "London": "15°C" };\n  return { location, temperature: temps[location] || "20°C", condition: "Sunny" };\n}`
       },
       stock: {
         schema: {
@@ -1999,7 +1957,7 @@
             }
           }
         },
-        code: `async ({ ticker }) => {\n  // Mock API call\n  const prices = { "AAPL": "$150.00", "GOOGL": "$2800.00", "MSFT": "$300.00" };\n  return { ticker, price: prices[ticker.toUpperCase()] || "$100.00", currency: "USD" };\n}`
+        code: `async ({ ticker }) => {\n  const prices = { "AAPL": "$150.00", "GOOGL": "$2800.00", "MSFT": "$300.00" };\n  return { ticker, price: prices[ticker.toUpperCase()] || "$100.00", currency: "USD" };\n}`
       },
       calendar: {
         schema: {
@@ -2018,7 +1976,7 @@
             }
           }
         },
-        code: `async ({ title, date, time }) => {\n  // Mock DB interaction\n  return { success: true, event_id: "evt_" + Math.random().toString(36).substr(2, 6), title, scheduled_for: \`\${date} at \${time}\` };\n}`
+        code: `async ({ title, date, time }) => {\n  return { success: true, event_id: "evt_" + Math.random().toString(36).substr(2, 6), title, scheduled_for: \`\${date} at \${time}\` };\n}`
       },
       ip: {
         schema: {
@@ -2026,11 +1984,7 @@
           function: {
             name: "get_ip_address",
             description: "Get the current public IP address of the user",
-            parameters: {
-              type: "object",
-              properties: {},
-              required: []
-            }
+            parameters: { type: "object", properties: {}, required: [] }
           }
         },
         code: `async () => {\n  try {\n    const res = await fetch("https://api.ipify.org/?format=json");\n    const data = await res.json();\n    return data;\n  } catch (error) {\n    return { error: error.message };\n  }\n}`
@@ -2041,11 +1995,7 @@
           function: {
             name: "get_current_time",
             description: "Get the current time",
-            parameters: {
-              type: "object",
-              properties: {},
-              required: []
-            }
+            parameters: { type: "object", properties: {}, required: [] }
           }
         },
         code: `async () => {\n  const now = new Date();\n  return { time: now.toLocaleTimeString(), iso: now.toISOString() };\n}`
@@ -2056,11 +2006,7 @@
           function: {
             name: "get_current_date",
             description: "Get the current date",
-            parameters: {
-              type: "object",
-              properties: {},
-              required: []
-            }
+            parameters: { type: "object", properties: {}, required: [] }
           }
         },
         code: `async () => {\n  const now = new Date();\n  return { date: now.toLocaleDateString(), iso: now.toISOString() };\n}`
@@ -2079,18 +2025,14 @@
       const modalTitle = document.querySelector('.modal-title');
       const schemaInput = document.getElementById('toolSchemaInput');
       const codeInput = document.getElementById('toolCodeInput');
-
       currentEditingIndex = index;
-
       if (index !== -1) {
         const tool = window.registeredTools[index];
         schemaInput.value = JSON.stringify(tool.schema, null, 2);
         codeInput.value = tool.codeRaw;
         modalTitle.textContent = "Edit Function (Tool)";
       } else {
-        if (!schemaInput.value.trim()) {
-          window.loadToolExample('weather');
-        }
+        if (!schemaInput.value.trim()) window.loadToolExample('weather');
         modalTitle.textContent = "Create Function (Tool)";
       }
       document.getElementById('toolModal').classList.remove('hidden');
@@ -2112,13 +2054,10 @@
         const schemaRaw = document.getElementById('toolSchemaInput').value.trim();
         const codeRaw = document.getElementById('toolCodeInput').value.trim();
         if (!schemaRaw || !codeRaw) throw new Error("Both schema and code are required.");
-
         const schema = JSON.parse(schemaRaw);
         if (!schema.type || !schema.function || !schema.function.name) throw new Error("Invalid schema structure.");
-
         const fn = eval('(' + codeRaw + ')');
         if (typeof fn !== 'function') throw new Error("Implementation is not a valid function.");
-
         if (currentEditingIndex !== -1) {
           window.registeredTools[currentEditingIndex] = { schema, codeRaw, fn };
           log(`Updated tool: ${schema.function.name}.`, 'ok');
@@ -2126,7 +2065,6 @@
           window.registeredTools.push({ schema, codeRaw, fn });
           log(`Added tool: ${schema.function.name}.`, 'ok');
         }
-
         renderTools();
         closeToolModal();
       } catch (e) {
