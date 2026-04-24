@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nothing Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Doto:wght@100..900&family=Space+Grotesk:wght@300..700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --black:#000;--surface:#111;--surface-raised:#1A1A1A;
+  --border:#222;--border-visible:#333;
+  --text-disabled:#666;--text-secondary:#999;--text-primary:#E8E8E8;--text-display:#FFF;
+  --accent-red:#D71921;--utility-orange:#F26522;--success:#4A9E5C;--warning:#D4A843;
+  --font-doto:'Doto',monospace;--font-grotesk:'Space Grotesk',sans-serif;--font-mono:'Space Mono',monospace;
+  --ease:cubic-bezier(0.4,0,0.2,1);
+}
+.light-layer{
+  --black:#F5F5F5;--surface:#FFF;--surface-raised:#F0F0F0;
+  --border:#E8E8E8;--border-visible:#CCC;
+  --text-disabled:#999;--text-secondary:#666;--text-primary:#1A1A1A;--text-display:#000;
+}
+body{background:var(--black);font-family:var(--font-grotesk);color:var(--text-primary);-webkit-font-smoothing:antialiased}
+.comparison-container{max-width:1120px;margin:0 auto;padding:32px}
+.comparison-inner{position:relative}
+.dark-layer{position:relative;z-index:1}
+.light-layer{position:absolute;top:0;left:0;width:100%;min-height:100%;z-index:2;clip-path:polygon(50% 0,100% 0,100% 100%,50% 100%)}
+.divider{position:absolute;top:0;left:50%;width:2px;height:100%;background:var(--border-visible);transform:translateX(-50%);z-index:100;pointer-events:none}
+.handle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;background:var(--surface-raised);border:1px solid var(--border-visible);cursor:ew-resize;display:flex;align-items:center;justify-content:center;z-index:101;pointer-events:auto;transition:background 200ms}
+.handle:hover{background:var(--border)}
+.bento-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:200px 200px 185px 185px;gap:10px}
+.card{border-radius:16px;border:1px solid var(--border);background:var(--surface);padding:24px;position:relative;overflow:hidden;transition:border-color 200ms var(--ease)}
+.card:hover{border-color:var(--border-visible)}
+.card::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:var(--border-visible);transform:translateY(-100%);opacity:0;transition:transform 500ms var(--ease),opacity 500ms var(--ease);transform-origin:center}
+.card:hover::after{transform:translateY(0);opacity:1}
+.card-title{font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;color:var(--text-secondary);font-weight:700}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--text-secondary);display:inline-block;margin-left:8px;vertical-align:middle;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.2}}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+/* Clock */
+.clock-card{grid-column:1/3;grid-row:1/3;display:flex;flex-direction:column;justify-content:center;align-items:center;background-image:radial-gradient(circle,var(--border) 1.5px,transparent 1.5px);background-size:10px 10px}
+.clock-card .card-title{position:absolute;top:24px;left:24px}
+.clock-card .live-dot{position:absolute;top:24px;right:24px}
+.clock-time{font-family:var(--font-doto);font-size:96px;font-weight:400;letter-spacing:-0.03em;line-height:1;color:var(--text-display);display:flex;align-items:baseline}
+.clock-separator{font-family:var(--font-doto);font-size:96px;font-weight:400;color:var(--text-secondary);animation:blink 1s step-end infinite;margin:0 4px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.15}}
+.clock-date{font-family:var(--font-mono);font-size:13px;letter-spacing:0.1em;color:var(--text-secondary);margin-top:12px;font-weight:400}
+/* Weather */
+.weather-card{display:flex;flex-direction:column;justify-content:space-between}
+.weather-temp{font-family:var(--font-doto);font-size:60px;font-weight:400;letter-spacing:-0.02em;line-height:1;color:var(--text-display)}
+.weather-city{font-family:var(--font-grotesk);font-size:18px;font-weight:500;letter-spacing:-0.01em}
+.weather-condition{font-family:var(--font-mono);font-size:12px;color:var(--text-secondary);letter-spacing:0.04em;margin-top:2px}
+.weather-icon{width:32px;height:32px;margin-left:auto}
+/* Battery */
+.battery-card{display:flex;flex-direction:column;justify-content:space-between}
+.battery-bar{display:flex;gap:4px;margin-top:auto}
+.battery-segment{flex:1;height:10px;background:var(--surface-raised);border:1px solid var(--border);transition:background 300ms var(--ease)}
+.battery-segment.filled{background:var(--text-primary)}
+.battery-segment.warn{background:var(--warning)}
+.battery-segment.critical{background:var(--accent-red)}
+.battery-pct{font-family:var(--font-mono);font-size:32px;font-weight:700;letter-spacing:-0.02em;color:var(--text-display);margin-top:auto}
+/* Glyph */
+.glyph-card{display:flex;flex-direction:column;align-items:center;justify-content:center}
+.glyph-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
+.led-dot{width:10px;height:10px;border-radius:50%;background:var(--surface-raised);border:1px solid var(--border);transition:background 150ms var(--ease),border-color 150ms var(--ease)}
+.led-dot.on{background:var(--text-primary);border-color:var(--text-primary)}
+.led-dot.accent{background:var(--accent-red);border-color:var(--accent-red)}
+/* CPU Gauge */
+.cpu-card{display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge-container{position:relative;width:100px;height:100px;margin-top:auto;margin-bottom:auto}
+.gauge-svg{width:100%;height:100%;transform:rotate(-90deg)}
+.gauge-track{fill:none;stroke:var(--surface-raised);stroke-width:4}
+.gauge-fill{fill:none;stroke:var(--text-primary);stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset 1s var(--ease)}
+.gauge-value{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-mono);font-size:28px;font-weight:700;letter-spacing:-0.02em;color:var(--text-display)}
+.gauge-label{font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;color:var(--text-secondary);margin-top:8px}
+/* Memory */
+.memory-card{display:flex;flex-direction:column;justify-content:space-between}
+.memory-bar{display:flex;gap:3px;margin-top:auto}
+.memory-segment{flex:1;height:8px;background:var(--surface-raised);border:1px solid var(--border)}
+.memory-segment.filled{background:var(--text-primary)}
+.memory-info{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:12px;color:var(--text-secondary);margin-top:8px}
+.memory-info .used{color:var(--text-primary);font-weight:700}
+/* Now Playing */
+.now-playing-card{display:flex;flex-direction:column;justify-content:space-between}
+.now-playing-top{display:flex;align-items:center;gap:16px}
+.np-waveform{display:flex;align-items:flex-end;gap:2px;height:48px;flex:1}
+.np-bar{width:3px;background:var(--text-primary);border-radius:1px;animation:waveform var(--dur,1.2s) ease-in-out infinite;animation-delay:var(--del,0s)}
+@keyframes waveform{0%,100%{height:var(--min,8px)}50%{height:var(--max,36px)}}
+.np-info{flex:1}
+.np-title{font-family:var(--font-grotesk);font-size:20px;font-weight:500;letter-spacing:-0.01em}
+.np-artist{font-family:var(--font-mono);font-size:12px;color:var(--text-secondary);letter-spacing:0.04em;margin-top:2px}
+.np-progress{display:flex;align-items:center;gap:8px;margin-top:auto}
+.np-progress-bar{flex:1;height:2px;background:var(--surface-raised);position:relative;border-radius:1px;overflow:hidden}
+.np-progress-fill{height:100%;background:var(--text-primary);width:37%;transition:width 1s linear}
+.np-time{font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);letter-spacing:0.04em}
+/* Activity Heatmap */
+.heatmap-card{display:flex;flex-direction:column}
+.heatmap-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:auto;margin-bottom:auto}
+.heatmap-cell{width:100%;aspect-ratio:1;border-radius:2px;background:var(--text-primary);transition:opacity 500ms}
+/* Quick Settings */
+.settings-card{display:flex;flex-direction:column;justify-content:space-between}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.setting-row:last-child{border-bottom:none}
+.setting-name{font-family:var(--font-grotesk);font-size:14px;font-weight:400}
+.setting-status{font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);letter-spacing:0.04em}
+.toggle{width:36px;height:20px;border-radius:10px;background:var(--surface-raised);border:1px solid var(--border);position:relative;cursor:pointer;overflow:hidden;transition:border-color 200ms}
+.toggle::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background-image:radial-gradient(circle,var(--text-secondary) 0.8px,transparent 0.8px);background-size:4px 4px;opacity:0;transition:opacity 200ms}
+.toggle.active::before{opacity:0.25}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:7px;background:var(--text-primary);transition:transform 200ms var(--ease)}
+.toggle.active::after{transform:translateX(16px)}
+.toggle.active{border-color:var(--text-secondary)}
+/* ECG */
+.ecg-card{display:flex;flex-direction:column}
+.ecg-canvas{width:100%;height:100px;margin-top:auto}
+.ecg-freq{font-family:var(--font-mono);font-size:12px;color:var(--text-secondary);letter-spacing:0.04em;margin-top:4px}
+.ecg-freq span{color:var(--text-primary);font-weight:700}
+/* World Clocks */
+.world-card{display:flex;flex-direction:column;justify-content:space-between}
+.world-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0}
+.world-row+.world-row{border-top:1px solid var(--border)}
+.world-city{font-family:var(--font-grotesk);font-size:14px;font-weight:500}
+.world-time{font-family:var(--font-mono);font-size:14px;font-weight:700;letter-spacing:-0.01em;color:var(--text-display)}
+.world-sparkline{width:50px;height:16px}
+.world-sparkline path{fill:none;stroke:var(--text-secondary);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+/* Ticker */
+.ticker-card{display:flex;flex-direction:column;justify-content:space-between}
+.ticker-text{font-family:var(--font-mono);font-size:13px;color:var(--text-secondary);letter-spacing:0.06em;white-space:nowrap;overflow:hidden;animation:scroll 12s linear infinite}
+@keyframes scroll{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+.ticker-cursor{display:inline-block;width:6px;height:14px;background:var(--text-primary);margin-left:2px;animation:cursor-blink 0.8s step-end infinite;vertical-align:middle}
+@keyframes cursor-blink{0%,100%{opacity:1}50%{opacity:0}}
+/* Glitch effect */
+.glitch{animation:glitch 0.15s steps(2) 3}
+@keyframes glitch{0%{opacity:1;transform:translate(0)}25%{opacity:0.8;transform:translate(-1px,1px)}50%{opacity:0.6;transform:translate(1px,-1px)}75%{opacity:0.9;transform:translate(-1px,-1px)}100%{opacity:1;transform:translate(0)}}
+/* Responsive */
+@media(max-width:900px){
+  .bento-grid{grid-template-columns:repeat(2,1fr);grid-template-rows:auto}
+  .clock-card{grid-column:1/3;grid-row:auto;min-height:220px}
+  .now-playing-card,.ecg-card{grid-column:1/3}
+}
+</style>
+</head>
+<body>
+<div class="comparison-container">
+<div class="comparison-inner">
+<div class="dark-layer">
+<div class="bento-grid">
+
+<!-- Clock 2x2 -->
+<div class="card clock-card">
+  <span class="card-title">SYSTEM CLOCK</span>
+  <span class="live-dot"></span>
+  <div class="clock-time">
+    <span id="clock-hours">00</span>
+    <span class="clock-separator">:</span>
+    <span id="clock-minutes">00</span>
+  </div>
+  <div class="clock-date" id="clock-date">JAN 01 · MON</div>
+</div>
+
+<!-- Weather -->
+<div class="card weather-card">
+  <div class="card-header">
+    <span class="card-title">TOKYO</span>
+    <span class="live-dot"></span>
+  </div>
+  <div class="weather-temp" id="weather-temp">00°</div>
+  <div>
+    <div class="weather-city">Partly Cloudy</div>
+    <div class="weather-condition">H:26° L:18°</div>
+  </div>
+</div>
+
+<!-- Battery -->
+<div class="card battery-card">
+  <div class="card-header">
+    <span class="card-title">BATTERY</span>
+    <span class="live-dot"></span>
+  </div>
+  <div class="battery-bar" id="battery-bar">
+    <div class="battery-segment"></div>
+    <div class="battery-segment"></div>
+    <div class="battery-segment"></div>
+    <div class="battery-segment"></div>
+    <div class="battery-segment"></div>
+    <div class="battery-segment"></div>
+    <div class="battery-segment"></div>
+  </div>
+  <div class="battery-pct" id="battery-pct">0%</div>
+</div>
+
+<!-- Glyph -->
+<div class="card glyph-card">
+  <span class="card-title" style="position:absolute;top:24px;left:24px">GLYPH</span>
+  <span class="live-dot" style="position:absolute;top:24px;right:24px"></span>
+  <div class="glyph-grid" id="glyph-grid">
+    <div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div>
+    <div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div>
+    <div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div>
+    <div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div>
+    <div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div><div class="led-dot"></div>
+  </div>
+</div>
+
+<!-- CPU -->
+<div class="card cpu-card">
+  <span class="card-title" style="position:absolute;top:24px;left:24px">CPU</span>
+  <div class="gauge-container">
+    <svg class="gauge-svg" viewBox="0 0 100 100">
+      <circle class="gauge-track" cx="50" cy="50" r="42"/>
+      <circle class="gauge-fill" id="cpu-gauge" cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="264"/>
+    </svg>
+    <div class="gauge-value" id="cpu-value">0</div>
+  </div>
+  <div class="gauge-label" id="cpu-label">CORES ACTIVE</div>
+</div>
+
+<!-- Memory -->
+<div class="card memory-card">
+  <div class="card-header">
+    <span class="card-title">MEMORY</span>
+    <span class="live-dot"></span>
+  </div>
+  <div class="memory-bar" id="memory-bar"></div>
+  <div class="memory-info">
+    <span class="used" id="memory-used">0 GB</span>
+    <span>16 GB</span>
+  </div>
+</div>
+
+<!-- Now Playing -->
+<div class="card now-playing-card">
+  <div class="card-header" style="width:100%">
+    <span class="card-title">NOW PLAYING</span>
+    <span class="live-dot"></span>
+  </div>
+  <div class="now-playing-top">
+    <div class="np-waveform" id="np-waveform"></div>
+    <div class="np-info">
+      <div class="np-title">Nightcall</div>
+      <div class="np-artist">KAVINSKY</div>
+    </div>
+  </div>
+  <div class="np-progress">
+    <span class="np-time">1:23</span>
+    <div class="np-progress-bar"><div class="np-progress-fill" id="np-fill"></div></div>
+    <span class="np-time">4:01</span>
+  </div>
+</div>
+
+<!-- Activity Heatmap -->
+<div class="card heatmap-card">
+  <div class="card-header">
+    <span class="card-title">ACTIVITY</span>
+    <span class="live-dot"></span>
+  </div>
+  <div class="heatmap-grid" id="heatmap-grid"></div>
+  <div class="gauge-label" id="uptime-label" style="margin-top:auto">UP 99.7%</div>
+</div>
+
+<!-- Quick Settings -->
+<div class="card settings-card">
+  <div class="card-header">
+    <span class="card-title">QUICK SETTINGS</span>
+  </div>
+  <div style="flex:1;overflow-y:auto">
+    <div class="setting-row"><span class="setting-name">Wi-Fi</span><span class="setting-status">ON</span><div class="toggle active" data-key="wifi"></div></div>
+    <div class="setting-row"><span class="setting-name">Bluetooth</span><span class="setting-status">ON</span><div class="toggle active" data-key="bt"></div></div>
+    <div class="setting-row"><span class="setting-name">Airplane</span><span class="setting-status">OFF</span><div class="toggle" data-key="air"></div></div>
+    <div class="setting-row"><span class="setting-name">Glyph</span><span class="setting-status">ON</span><div class="toggle active" data-key="glyph"></div></div>
+    <div class="setting-row"><span class="setting-name">DND</span><span class="setting-status">OFF</span><div class="toggle" data-key="dnd"></div></div>
+  </div>
+</div>
+
+<!-- ECG -->
+<div class="card ecg-card">
+  <div class="card-header">
+    <span class="card-title">SYSTEM PULSE</span>
+    <span class="live-dot"></span>
+  </div>
+  <canvas class="ecg-canvas" id="ecg-canvas"></canvas>
+  <div class="ecg-freq">LOAD <span id="ecg-load">0</span>%</div>
+</div>
+
+<!-- World Clocks -->
+<div class="card world-card">
+  <div class="card-header">
+    <span class="card-title">WORLD</span>
+  </div>
+  <div style="flex:1;overflow:hidden">
+    <div class="world-row">
+      <span class="world-city">London</span>
+      <span class="world-time" id="world-london">00:00</span>
+      <svg class="world-sparkline" viewBox="0 0 50 16"><path d="M0 10 Q6 4 12 10 T24 8 T36 12 T50 6"/></svg>
+    </div>
+    <div class="world-row">
+      <span class="world-city">New York</span>
+      <span class="world-time" id="world-ny">00:00</span>
+      <svg class="world-sparkline" viewBox="0 0 50 16"><path d="M0 8 Q8 14 16 6 T32 12 T50 4"/></svg>
+    </div>
+    <div class="world-row">
+      <span class="world-city">Sydney</span>
+      <span class="world-time" id="world-sydney">00:00</span>
+      <svg class="world-sparkline" viewBox="0 0 50 16"><path d="M0 12 Q10 6 20 14 T35 8 T50 10"/></svg>
+    </div>
+  </div>
+</div>
+
+<!-- Ticker -->
+<div class="card ticker-card">
+  <div class="card-header">
+    <span class="card-title">SYSTEM</span>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;overflow:hidden">
+    <div class="ticker-text" id="ticker-text"></div>
+    <span class="ticker-cursor"></span>
+  </div>
+</div>
+
+</div>
+</div>
+<div class="light-layer"></div>
+<div class="divider"><div class="handle">
+<svg width="14" height="10" viewBox="0 0 14 10" fill="none" style="color:var(--text-secondary)">
+<path d="M4 1L1 5L4 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M10 1L13 5L10 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</div></div>
+</div>
+</div>
+<script>
+(function(){
+'use strict';
+
+/* ── Comparison Slider ── */
+const container=document.querySelector('.comparison-container');
+const darkLayer=document.querySelector('.dark-layer');
+const lightLayer=document.querySelector('.light-layer');
+const divider=document.querySelector('.divider');
+const handle=document.querySelector('.handle');
+let pos=50,dragging=false;
+
+function setPos(p){
+  pos=Math.max(2,Math.min(98,p));
+  lightLayer.style.clipPath=`polygon(${pos}% 0,100% 0,100% 100%,${pos}% 100%)`;
+  divider.style.left=pos+'%';
+}
+
+function initSlider(){
+  lightLayer.innerHTML=darkLayer.innerHTML;
+  setPos(50);
+  handle.addEventListener('mousedown',()=>{dragging=true;handle.style.background='var(--border)'});
+  handle.addEventListener('touchstart',()=>{dragging=true;handle.style.background='var(--border)'},{passive:true});
+  document.addEventListener('mousemove',e=>{if(!dragging)return;setPos((e.clientX-container.getBoundingClientRect().left)/container.offsetWidth*100)});
+  document.addEventListener('touchmove',e=>{if(!dragging)return;const t=e.touches[0];setPos((t.clientX-container.getBoundingClientRect().left)/container.offsetWidth*100)},{passive:true});
+  document.addEventListener('mouseup',()=>{dragging=false;handle.style.background=''});
+  document.addEventListener('touchend',()=>{dragging=false;handle.style.background=''});
+  handle.addEventListener('mouseleave',()=>{if(!dragging)handle.style.background=''});
+}
+
+/* ── Count Up ── */
+function countUp(el,target,dur=800){
+  const start=performance.now();
+  const tick=now=>{
+    const p=Math.min((now-start)/dur,1);
+    const e=1-Math.pow(1-p,3);
+    el.textContent=Math.round(e*target);
+    if(p<1)requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+/* ── Clock ── */
+function initClock(){
+  const now=new Date();
+  const h=now.getHours(),m=now.getMinutes(),s=now.getSeconds();
+  const days=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const dateEl=document.getElementById('clock-date');
+  dateEl.textContent=`${months[now.getMonth()]} ${String(now.getDate()).padStart(2,'0')} · ${days[now.getDay()]}`;
+  const hEl=document.getElementById('clock-hours');
+  const mEl=document.getElementById('clock-minutes');
+  countUp(hEl,h,700);
+  countUp(mEl,m,700);
+  setInterval(()=>{
+    const n=new Date();
+    hEl.textContent=String(n.getHours()).padStart(2,'0');
+    mEl.textContent=String(n.getMinutes()).padStart(2,'0');
+    dateEl.textContent=`${months[n.getMonth()]} ${String(n.getDate()).padStart(2,'0')} · ${days[n.getDay()]}`;
+  },1000);
+  // Glitch every 30s
+  setInterval(()=>{
+    hEl.classList.add('glitch');
+    mEl.classList.add('glitch');
+    const rH=Math.floor(Math.random()*24),rM=Math.floor(Math.random()*60);
+    hEl.textContent=String(rH).padStart(2,'0');
+    mEl.textContent=String(rM).padStart(2,'0');
+    setTimeout(()=>{
+      hEl.textContent=String(new Date().getHours()).padStart(2,'0');
+      mEl.textContent=String(new Date().getMinutes()).padStart(2,'0');
+      hEl.classList.remove('glitch');
+      mEl.classList.remove('glitch');
+    },500);
+  },30000);
+}
+
+/* ── Weather ── */
+function initWeather(){
+  const el=document.getElementById('weather-temp');
+  countUp(el,23,600);
+  // Keep the degree symbol
+  setTimeout(()=>{el.textContent='23°'},650);
+}
+
+/* ── Battery ── */
+function initBattery(){
+  const segs=document.querySelectorAll('#battery-bar .battery-segment');
+  const pctEl=document.getElementById('battery-pct');
+  const target=87;
+  const filled=Math.ceil(target/100*segs.length);
+  segs.forEach((s,i)=>{
+    setTimeout(()=>{
+      if(i<filled)s.classList.add('filled');
+    },600+i*50);
+  });
+  countUp(pctEl,target,900);
+  setTimeout(()=>{pctEl.textContent=target+'%'},950);
+}
+
+/* ── Glyph ── */
+function initGlyph(){
+  const dots=document.querySelectorAll('#glyph-grid .led-dot');
+  const patterns=[
+    [0,1,2,3,4,7,11,15,19,24],
+    [0,5,10,15,20,4,9,14,19,24],
+    [0,1,2,3,4,12,20,21,22,23,24],
+    [6,7,8,9,10,11,12,13,14,15,16,17,18],
+    [2,7,12,17,22,4,9,14,19],
+  ];
+  let pi=0;
+  function showPattern(){
+    dots.forEach(d=>{d.className='led-dot'});
+    const p=patterns[pi%patterns.length];
+    p.forEach(i=>{
+      if(i<dots.length){
+        dots[i].classList.add('on');
+        if(i===12)dots[i].classList.add('accent');
+      }
+    });
+    pi++;
+  }
+  setTimeout(showPattern,800);
+  setInterval(showPattern,2000);
+}
+
+/* ── CPU ── */
+let cpuVal=42;
+function initCPU(){
+  const gauge=document.getElementById('cpu-gauge');
+  const valEl=document.getElementById('cpu-value');
+  const labelEl=document.getElementById('cpu-label');
+  const circumference=2*Math.PI*42;
+  gauge.style.strokeDasharray=circumference;
+  gauge.style.strokeDashoffset=circumference;
+  setTimeout(()=>{
+    const offset=circumference-(cpuVal/100)*circumference;
+    gauge.style.strokeDashoffset=offset;
+    valEl.textContent=cpuVal;
+  },600);
+  setInterval(()=>{
+    cpuVal=Math.max(15,Math.min(85,cpuVal+Math.round((Math.random()-0.5)*6)));
+    const offset=circumference-(cpuVal/100)*circumference;
+    gauge.style.strokeDashoffset=offset;
+    valEl.textContent=cpuVal;
+    labelEl.textContent=cpuVal>70?'HIGH LOAD':'NOMINAL';
+    gauge.style.stroke=cpuVal>70?'var(--accent-red)':'var(--text-primary)';
+    document.getElementById('ecg-load').textContent=cpuVal;
+  },3000);
+}
+
+/* ── Memory ── */
+function initMemory(){
+  const bar=document.getElementById('memory-bar');
+  const usedEl=document.getElementById('memory-used');
+  const totalSegs=16;
+  const usedSegs=10;
+  for(let i=0;i<totalSegs;i++){
+    const seg=document.createElement('div');
+    seg.className='memory-segment';
+    bar.appendChild(seg);
+    setTimeout(()=>{
+      if(i<usedSegs)seg.classList.add('filled');
+    },600+i*40);
+  }
+  setTimeout(()=>{usedEl.textContent='6.2 / 16 GB'},600+usedSegs*40);
+}
+
+/* ── Now Playing ── */
+function initNowPlaying(){
+  const waveform=document.getElementById('np-waveform');
+  const barCount=28;
+  for(let i=0;i<barCount;i++){
+    const bar=document.createElement('div');
+    bar.className='np-bar';
+    const min=6+Math.random()*4;
+    const max=12+Math.random()*36;
+    const dur=0.8+Math.random()*1.2;
+    const del=Math.random()*1.5;
+    bar.style.cssText=`--min:${min}px;--max:${max}px;--dur:${dur.toFixed(2)}s;--del:${del.toFixed(2)}s`;
+    waveform.appendChild(bar);
+  }
+  // Progress bar animation
+  let progress=37;
+  setInterval(()=>{
+    progress=Math.min(100,progress+0.3);
+    document.getElementById('np-fill').style.width=progress+'%';
+    if(progress>=100)progress=0;
+  },1000);
+}
+
+/* ── Activity Heatmap ── */
+function initHeatmap(){
+  const grid=document.getElementById('heatmap-grid');
+  const values=[0.15,0.3,0.8,0.5,0.9,0.2,0.4,0.7,0.6,0.85,0.35,0.55,0.95,0.1,
+    0.45,0.75,0.25,0.65,0.4,0.85,0.5,0.3,0.7,0.6,0.8,0.15,0.45,
+    0.9,0.35,0.55,0.75,0.2,0.6,0.45,0.85,0.1,0.5,0.7,0.3,0.65,0.4,0.8,0.25,0.55,0.9,0.15,0.7,0.35,0.5,0.6,0.85,0.2,0.45,0.75,0.1,0.65,0.3,0.5];
+  values.forEach((v,i)=>{
+    const cell=document.createElement('div');
+    cell.className='heatmap-cell';
+    cell.style.opacity=v;
+    grid.appendChild(cell);
+  });
+}
+
+/* ── Quick Settings ── */
+function initSettings(){
+  document.querySelectorAll('.toggle').forEach(toggle=>{
+    toggle.addEventListener('click',()=>{
+      toggle.classList.toggle('active');
+      const status=toggle.parentElement.querySelector('.setting-status');
+      if(status)status.textContent=toggle.classList.contains('active')?'ON':'OFF';
+    });
+  });
+}
+
+/* ── ECG ── */
+let ecgCtx,ecgCanvas,ecgX=0;
+const ecgData=[];
+function initECG(){
+  ecgCanvas=document.getElementById('ecg-canvas');
+  const rect=ecgCanvas.parentElement.getBoundingClientRect();
+  ecgCanvas.width=rect.width-48;
+  ecgCanvas.height=100;
+  ecgCtx=ecgCanvas.getContext('2d');
+  // Fill data buffer
+  for(let i=0;i<ecgCanvas.width;i++){
+    const t=i/3;
+    const phase=(t%120)/120;
+    let v=0;
+    if(phase>0.05&&phase<0.12)v=Math.sin((phase-0.05)/0.07*Math.PI)*8;
+    else if(phase>0.15&&phase<0.17)v=-6;
+    else if(phase>0.17&&phase<0.22)v=35*Math.exp(-Math.pow((phase-0.195)/0.02,2)*50);
+    else if(phase>0.22&&phase<0.24)v=-10;
+    else if(phase>0.35&&phase<0.45)v=Math.sin((phase-0.35)/0.1*Math.PI)*12;
+    ecgData.push(v);
+  }
+  ecgX=ecgCanvas.width;
+  drawECGFrame();
+  setInterval(drawECGFrame,30);
+}
+
+function drawECGFrame(){
+  if(!ecgCtx)return;
+  const w=ecgCanvas.width,h=ecgCanvas.height;
+  ecgCtx.fillStyle='var(--surface)';
+  ecgCtx.clearRect(0,0,w,h);
+  // Grid dots
+  ecgCtx.fillStyle='rgba(153,153,153,0.15)';
+  for(let x=0;x<w;x+=12){
+    for(let y=0;y<h;y+=12){
+      ecgCtx.fillRect(x,y,1,1);
+    }
+  }
+  // Waveform
+  ecgCtx.strokeStyle='var(--text-primary)';
+  ecgCtx.lineWidth=1.5;
+  ecgCtx.lineJoin='round';
+  ecgCtx.beginPath();
+  const centerY=h/2;
+  for(let i=0;i<w;i++){
+    const idx=(i+ecgX)%ecgData.length;
+    const y=centerY-ecgData[idx];
+    if(i===0)ecgCtx.moveTo(i,y);
+    else ecgCtx.lineTo(i,y);
+  }
+  ecgCtx.stroke();
+  // Scan dot
+  const lastIdx=(ecgX)%ecgData.length;
+  const lastY=centerY-ecgData[lastIdx];
+  ecgCtx.fillStyle='var(--text-primary)';
+  ecgCtx.beginPath();
+  ecgCtx.arc(w-1,lastY,2.5,0,Math.PI*2);
+  ecgCtx.fill();
+  ecgX++;
+}
+
+/* ── World Clocks ── */
+function initWorldClocks(){
+  const timezones=[
+    {id:'world-london',offset:0},
+    {id:'world-ny',offset:-5},
+    {id:'world-sydney',offset:11},
+  ];
+  function update(){
+    const now=new Date();
+    timezones.forEach(tz=>{
+      const utc=now.getTime()+now.getTimezoneOffset()*60000;
+      const cityTime=new Date(utc+tz.offset*3600000);
+      const h=cityTime.getHours(),m=cityTime.getMinutes();
+      document.getElementById(tz.id).textContent=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+    });
+  }
+  update();
+  setInterval(update,1000);
+}
+
+/* ── Ticker ── */
+function initTicker(){
+  const el=document.getElementById('ticker-text');
+  const msgs=[
+    'SYSTEM NORMAL · ALL MODULES OPERATIONAL · UPTIME 99.7% · GLYPH SYNC ACTIVE',
+    'KERNEL 4.2.1 · MEMORY OPTIMIZED · NETWORK LATENCY 0.3MS · DISK IO NOMINAL',
+    'BACKGROUND SYNC COMPLETE · CACHE PURGED · SCHEDULED MAINTENANCE IN 4H 23M',
+  ];
+  let msgIdx=0,charIdx=0;
+  let currentMsg=msgs[0];
+  function typeChar(){
+    if(charIdx<=currentMsg.length){
+      el.textContent=currentMsg.substring(0,charIdx);
+      charIdx++;
+      setTimeout(typeChar,50+Math.random()*30);
+    } else {
+      setTimeout(()=>{
+        charIdx=0;
+        msgIdx=(msgIdx+1)%msgs.length;
+        currentMsg=msgs[msgIdx];
+        typeChar();
+      },4000);
+    }
+  }
+  setTimeout(typeChar,1200);
+}
+
+/* ── Init ── */
+function init(){
+  initSlider();
+  initClock();
+  initWeather();
+  initBattery();
+  initGlyph();
+  initCPU();
+  initMemory();
+  initNowPlaying();
+  initHeatmap();
+  initSettings();
+  initECG();
+  initWorldClocks();
+  initTicker();
+}
+
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+else init();
+})();
+</script>
+</body>
+</html>

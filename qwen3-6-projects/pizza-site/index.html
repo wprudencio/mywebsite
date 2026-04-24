@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+ <html lang="en">
+ <head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>PIZZA TRIX — Drop & Eat</title>
+ <style>
+   /* ═══════════════════════════════════════════
+      COLOR PALETTE — TETRIX ARCADE
+      ═══════════════════════════════════════════ */
+   :root {
+     --bg-base:       #0d1117;
+     --bg-surface:    #111820;
+     --bg-surface-2:  #161e28;
+     --border:        #1e2d3d;
+     --neon-cyan:     #00e5cc;
+     --neon-green:    #39ff14;
+     --neon-magenta:  #ff2d78;
+     --neon-yellow:   #ffe600;
+     --neon-orange:   #ff6b00;
+     --neon-purple:   #a855f7;
+     --neon-blue:     #2563eb;
+     --text-primary:  #e8f4f8;
+     --text-muted:    #4a6070;
+     --text-label:    #6b8a9a;
+     --glow-cyan:     0 0 8px #00e5cc88, 0 0 20px #00e5cc44;
+     --glow-magenta:  0 0 8px #ff2d7888, 0 0 20px #ff2d7844;
+     --glow-green:    0 0 8px #39ff1488, 0 0 20px #39ff1444;
+     --glow-yellow:   0 0 8px #ffe60088, 0 0 20px #ffe60044;
+     --glow-orange:   0 0 8px #ff6b0088, 0 0 20px #ff6b0044;
+     --glow-purple:   0 0 8px #a855f788, 0 0 20px #a855f744;
+   }
+
+   /* ═══════════════════════════════════════════
+      FONT IMPORTS
+      ═══════════════════════════════════════════ */
+   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=VT323&display=swap');
+
+   /* ═══════════════════════════════════════════
+      RESET & BASE
+      ═══════════════════════════════════════════ */
+   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+   html { scroll-behavior: smooth; }
+
+   body {
+     background: var(--bg-base);
+     color: var(--text-primary);
+     font-family: 'Share Tech Mono', monospace;
+     min-height: 100vh;
+     overflow-x: hidden;
+     cursor: crosshair;
+   }
+
+   /* ═══════════════════════════════════════════
+      SCANLINE OVERLAY
+      ═══════════════════════════════════════════ */
+   body::after {
+     content: '';
+     position: fixed;
+     inset: 0;
+     background: repeating-linear-gradient(
+       0deg,
+       transparent,
+       transparent 2px,
+       rgba(0,0,0,0.08) 2px,
+       rgba(0,0,0,0.08) 4px
+     );
+     pointer-events: none;
+     z-index: 9999;
+   }
+
+   /* ═══════════════════════════════════════════
+      BRICK STREAM — FALLING BACKGROUND BLOCKS
+      ═══════════════════════════════════════════ */
+   .brick-stream {
+     position: fixed;
+     width: 18px;
+     height: 18px;
+     border-radius: 2px;
+     opacity: 0.35;
+     animation: fall linear infinite;
+     pointer-events: none;
+     z-index: 0;
+   }
+   @keyframes fall {
+     0%   { transform: translate(0, -100px) rotate(0deg); }
+     100% { transform: translate(60px, calc(100vh + 100px)) rotate(15deg); }
+   }
+
+   /* ═══════════════════════════════════════════
+      NAVIGATION
+      ═══════════════════════════════════════════ */
+   nav {
+     background: var(--bg-surface);
+     border-bottom: 1px solid var(--border);
+     padding: 0 24px;
+     height: 56px;
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     position: sticky;
+     top: 0;
+     z-index: 100;
+   }
+   .nav-logo {
+     display: flex;
+     align-items: center;
+     gap: 10px;
+   }
+   .nav-logo-icon {
+     width: 32px;
+     height: 32px;
+     background: var(--neon-cyan);
+     border-radius: 4px;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     font-family: 'Orbitron', monospace;
+     font-weight: 900;
+     font-size: 14px;
+     color: #000;
+     box-shadow: var(--glow-cyan);
+   }
+   .nav-logo-text {
+     font-family: 'Orbitron', monospace;
+     font-weight: 700;
+     font-size: 15px;
+     letter-spacing: 4px;
+     color: var(--text-primary);
+   }
+   .nav-logo-text span {
+     color: var(--neon-yellow);
+     text-shadow: var(--glow-yellow);
+   }
+   .nav-links {
+     display: flex;
+     gap: 32px;
+   }
+   .nav-links a {
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 12px;
+     letter-spacing: 2px;
+     color: var(--text-muted);
+     text-decoration: none;
+     text-transform: uppercase;
+     transition: color 0.2s, text-shadow 0.2s;
+   }
+   .nav-links a:hover {
+     color: var(--neon-cyan);
+     text-shadow: var(--glow-cyan);
+   }
+   .nav-links a.active {
+     color: var(--neon-cyan);
+     text-shadow: var(--glow-cyan);
+   }
+   .nav-cta {
+     background: var(--neon-cyan);
+     color: #000;
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 12px;
+     font-weight: 700;
+     letter-spacing: 2px;
+     text-transform: uppercase;
+     border: none;
+     padding: 8px 20px;
+     cursor: pointer;
+     box-shadow: var(--glow-cyan);
+     transition: transform 0.15s, box-shadow 0.15s;
+   }
+   .nav-cta:hover {
+     transform: scale(1.05);
+     box-shadow: 0 0 12px #00e5ccaa, 0 0 30px #00e5cc66;
+   }
+
+   /* ═══════════════════════════════════════════
+      MAIN LAYOUT
+      ═══════════════════════════════════════════ */
+   .main-layout {
+     display: grid;
+     grid-template-columns: 1fr 340px;
+     gap: 0;
+     min-height: calc(100vh - 56px - 36px);
+     position: relative;
+     z-index: 1;
+   }
+
+   /* ═══════════════════════════════════════════
+      LEFT — HERO + MENU
+      ═══════════════════════════════════════════ */
+   .content-area {
+     padding: 40px 48px;
+   }
+
+   /* HERO SECTION */
+   .hero {
+     margin-bottom: 48px;
+   }
+   .hero-badge {
+     display: inline-block;
+     background: #ff2d7822;
+     border: 1px solid var(--neon-magenta);
+     color: var(--neon-magenta);
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 10px;
+     letter-spacing: 2px;
+     padding: 3px 10px;
+     text-transform: uppercase;
+     margin-bottom: 16px;
+     animation: blink 1.2s step-start infinite;
+   }
+   @keyframes blink { 50% { opacity: 0.3; } }
+
+   .hero h1 {
+     font-family: 'Orbitron', monospace;
+     font-weight: 900;
+     font-size: clamp(36px, 5vw, 72px);
+     line-height: 1.05;
+     text-transform: uppercase;
+     margin-bottom: 12px;
+   }
+   .hero h1 .white { color: var(--text-primary); }
+   .hero h1 .cyan {
+     color: var(--neon-cyan);
+     text-shadow: var(--glow-cyan);
+   }
+   .hero h1 .yellow {
+     color: var(--neon-yellow);
+     text-shadow: var(--glow-yellow);
+   }
+   .hero h1 .magenta {
+     color: var(--neon-magenta);
+     text-shadow: var(--glow-magenta);
+   }
+   .hero-sub {
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 14px;
+     color: var(--text-muted);
+     margin-bottom: 24px;
+     line-height: 1.6;
+     max-width: 560px;
+   }
+   .hero-actions {
+     display: flex;
+     gap: 16px;
+     flex-wrap: wrap;
+   }
+   .btn-primary {
+     background: var(--neon-cyan);
+     color: #000;
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 14px;
+     font-weight: 700;
+     letter-spacing: 2px;
+     text-transform: uppercase;
+     border: none;
+     padding: 14px 32px;
+     cursor: pointer;
+     box-shadow: var(--glow-cyan);
+     transition: transform 0.15s, box-shadow 0.15s;
+   }
+   .btn-primary:hover {
+     transform: scale(1.05);
+     box-shadow: 0 0 12px #00e5ccaa, 0 0 30px #00e5cc66;
+   }
+   .btn-secondary {
+     background: transparent;
+     color: var(--neon-cyan);
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 14px;
+     font-weight: 700;
+     letter-spacing: 2px;
+     text-transform: uppercase;
+     border: 2px solid var(--neon-cyan);
+     padding: 12px 30px;
+     cursor: pointer;
+     transition: background 0.2s, transform 0.15s;
+   }
+   .btn-secondary:hover {
+     background: #00e5cc18;
+     transform: scale(1.03);
+   }
+
+   /* COLOR BLOCK DIVIDER */
+   .color-block-row {
+     display: flex;
+     gap: 3px;
+     margin: 40px 0 32px;
+   }
+   .color-block-row span {
+     width: 16px;
+     height: 16px;
+     border-radius: 2px;
+     flex-shrink: 0;
+   }
+
+   /* SECTION HEADERS */
+   .section-header {
+     font-family: 'Orbitron', monospace;
+     font-weight: 700;
+     font-size: 22px;
+     text-transform: uppercase;
+     letter-spacing: 3px;
+     color: var(--neon-cyan);
+     text-shadow: var(--glow-cyan);
+     margin-bottom: 24px;
+     display: flex;
+     align-items: center;
+     gap: 12px;
+   }
+   .section-header::before {
+     content: '▸';
+     color: var(--neon-magenta);
+     text-shadow: var(--glow-magenta);
+   }
+
+   /* ═══════════════════════════════════════════
+      MENU GRID
+      ═══════════════════════════════════════════ */
+   .menu-grid {
+     display: grid;
+     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+     gap: 16px;
+     margin-bottom: 48px;
+   }
+   .menu-card {
+     background: var(--bg-surface);
+     border: 1px solid var(--border);
+     border-left: 3px solid var(--neon-cyan);
+     padding: 20px;
+     transition: border-color 0.2s, transform 0.15s;
+     position: relative;
+     overflow: hidden;
+   }
+   .menu-card:hover {
+     border-color: var(--neon-cyan);
+     transform: translateY(-2px);
+   }
+   .menu-card::after {
+     content: '';
+     position: absolute;
+     top: 0;
+     right: 0;
+     width: 40px;
+     height: 40px;
+     background: linear-gradient(135deg, transparent 50%, #00e5cc10 50%);
+     pointer-events: none;
+   }
+   .menu-card.magenta { border-left-color: var(--neon-magenta); }
+   .menu-card.yellow  { border-left-color: var(--neon-yellow); }
+   .menu-card.green   { border-left-color: var(--neon-green); }
+   .menu-card.purple  { border-left-color: var(--neon-purple); }
+   .menu-card.orange  { border-left-color: var(--neon-orange); }
+
+   .menu-card-emoji {
+     font-size: 28px;
+     margin-bottom: 8px;
+   }
+   .menu-card-name {
+     font-family: 'Orbitron', monospace;
+     font-weight: 700;
+     font-size: 14px;
+     text-transform: uppercase;
+     letter-spacing: 1px;
+     color: var(--text-primary);
+     margin-bottom: 4px;
+   }
+   .menu-card-desc {
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 11px;
+     color: var(--text-muted);
+     line-height: 1.5;
+     margin-bottom: 12px;
+   }
+   .menu-card-bottom {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+   }
+   .menu-card-price {
+     font-family: 'VT323', monospace;
+     font-size: 28px;
+     color: var(--neon-cyan);
+     text-shadow: var(--glow-cyan);
+   }
+   .menu-card-price.yellow  { color: var(--neon-yellow); text-shadow: var(--glow-yellow); }
+   .menu-card-price.magenta { color: var(--neon-magenta); text-shadow: var(--glow-magenta); }
+   .menu-card-price.green   { color: var(--neon-green); text-shadow: var(--glow-green); }
+   .menu-card-price.orange  { color: var(--neon-orange); text-shadow: var(--glow-orange); }
+   .menu-card-price.purple  { color: var(--neon-purple); text-shadow: var(--glow-purple); }
+
+   .menu-card-tag {
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 9px;
+     letter-spacing: 1px;
+     text-transform: uppercase;
+     padding: 2px 6px;
+     border: 1px solid var(--neon-magenta);
+     color: var(--neon-magenta);
+     background: #ff2d7815;
+   }
+   .menu-card-tag.hot {
+     border-color: var(--neon-orange);
+     color: var(--neon-orange);
+     background: #ff6b0015;
+   }
+   .menu-card-tag.new {
+     border-color: var(--neon-green);
+     color: var(--neon-green);
+     background: #39ff1415;
+   }
+
+   /* ═══════════════════════════════════════════
+      RIGHT — STATS SIDEBAR
+      ═══════════════════════════════════════════ */
+   .sidebar {
+     background: var(--bg-surface);
+     border-left: 1px solid var(--border);
+     padding: 24px 20px;
+     display: flex;
+     flex-direction: column;
+     gap: 16px;
+     position: sticky;
+     top: 56px;
+     height: calc(100vh - 56px);
+     overflow-y: auto;
+   }
+
+   /* Level / Mode Card */
+   .level-card {
+     background: var(--bg-surface-2);
+     border: 1px solid var(--border);
+     border-left: 3px solid var(--neon-magenta);
+     padding: 16px;
+   }
+   .level-card-top {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     margin-bottom: 12px;
+   }
+   .level-card-title {
+     font-family: 'Orbitron', monospace;
+     font-weight: 700;
+     font-size: 11px;
+     letter-spacing: 2px;
+     color: var(--text-label);
+     text-transform: uppercase;
+   }
+   .badge-live {
+     background: #ff2d7822;
+     border: 1px solid var(--neon-magenta);
+     color: var(--neon-magenta);
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 10px;
+     letter-spacing: 2px;
+     padding: 2px 8px;
+     text-transform: uppercase;
+     animation: blink 1.2s step-start infinite;
+   }
+   .level-number {
+     font-family: 'VT323', monospace;
+     font-size: 48px;
+     line-height: 1;
+     color: var(--neon-cyan);
+     text-shadow: var(--glow-cyan);
+     margin-bottom: 4px;
+   }
+   .level-mode {
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 11px;
+     color: var(--neon-yellow);
+     text-transform: uppercase;
+     letter-spacing: 1px;
+     margin-bottom: 12px;
+   }
+   .progress-track {
+     background: var(--border);
+     height: 4px;
+     border-radius: 0;
+     width: 100%;
+   }
+   .progress-fill {
+     background: linear-gradient(90deg, var(--neon-cyan), var(--neon-blue));
+     height: 100%;
+     box-shadow: var(--glow-cyan);
+     transition: width 1s ease;
+   }
+
+   /* Stat Cards Grid */
+   .stat-grid {
+     display: grid;
+     grid-template-columns: 1fr 1fr;
+     gap: 12px;
+   }
+   .stat-card {
+     background: var(--bg-surface-2);
+     border: 1px solid var(--border);
+     padding: 14px;
+     border-left: 3px solid var(--neon-magenta);
+   }
+   .stat-card:nth-child(2) { border-left-color: var(--neon-cyan); }
+   .stat-card:nth-child(3) { border-left-color: var(--neon-yellow); }
+   .stat-card:nth-child(4) { border-left-color: var(--neon-green); }
+   .stat-card:nth-child(5) { border-left-color: var(--neon-purple); }
+   .stat-card:nth-child(6) { border-left-color: var(--neon-orange); }
+
+   .stat-icon {
+     font-size: 16px;
+     margin-bottom: 4px;
+   }
+   .stat-label {
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 9px;
+     letter-spacing: 2px;
+     color: var(--text-label);
+     text-transform: uppercase;
+     margin-bottom: 4px;
+   }
+   .stat-value {
+     font-family: 'VT323', monospace;
+     font-size: 32px;
+     line-height: 1;
+     color: var(--neon-magenta);
+     text-shadow: var(--glow-magenta);
+   }
+   .stat-value.cyan    { color: var(--neon-cyan); text-shadow: var(--glow-cyan); }
+   .stat-value.yellow  { color: var(--neon-yellow); text-shadow: var(--glow-yellow); }
+   .stat-value.green   { color: var(--neon-green); text-shadow: var(--glow-green); }
+   .stat-value.purple  { color: var(--neon-purple); text-shadow: var(--glow-purple); }
+   .stat-value.orange  { color: var(--neon-orange); text-shadow: var(--glow-orange); }
+   .stat-sub {
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 10px;
+     color: var(--text-muted);
+     margin-top: 4px;
+   }
+
+   /* Promo Card */
+   .promo-card {
+     background: linear-gradient(135deg, #ff2d7815, #a855f715);
+     border: 1px solid var(--neon-magenta);
+     padding: 16px;
+     text-align: center;
+   }
+   .promo-card h3 {
+     font-family: 'Orbitron', monospace;
+     font-weight: 700;
+     font-size: 13px;
+     color: var(--neon-magenta);
+     text-shadow: var(--glow-magenta);
+     text-transform: uppercase;
+     letter-spacing: 2px;
+     margin-bottom: 8px;
+   }
+   .promo-card p {
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 11px;
+     color: var(--text-muted);
+     line-height: 1.5;
+     margin-bottom: 12px;
+   }
+   .promo-code {
+     font-family: 'VT323', monospace;
+     font-size: 24px;
+     color: var(--neon-yellow);
+     text-shadow: var(--glow-yellow);
+     letter-spacing: 3px;
+     background: #ffe60015;
+     border: 1px dashed var(--neon-yellow);
+     padding: 6px 12px;
+     display: inline-block;
+   }
+
+   /* ═══════════════════════════════════════════
+      BOTTOM STATUS BAR
+      ═══════════════════════════════════════════ */
+   .status-bar {
+     background: var(--bg-surface);
+     border-top: 1px solid var(--border);
+     padding: 6px 24px;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     gap: 4px;
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 11px;
+     color: var(--text-muted);
+     position: sticky;
+     bottom: 0;
+     z-index: 100;
+     flex-wrap: wrap;
+   }
+   .status-bar .bullet {
+     color: var(--neon-magenta);
+     margin: 0 2px;
+     font-size: 8px;
+   }
+   .status-bar .keyword-cyan { color: var(--neon-cyan); }
+   .status-bar .keyword-yellow { color: var(--neon-yellow); }
+   .status-bar .keyword-green { color: var(--neon-green); }
+   .status-bar .keyword-magenta { color: var(--neon-magenta); }
+   .status-bar .keyword-orange { color: var(--neon-orange); }
+
+   /* ═══════════════════════════════════════════
+      SPECIALS SECTION
+      ═══════════════════════════════════════════ */
+   .specials-banner {
+     background: linear-gradient(90deg, var(--neon-magenta)15, var(--neon-orange)15);
+     border: 1px solid var(--neon-orange);
+     border-left: 3px solid var(--neon-orange);
+     padding: 20px 24px;
+     margin-bottom: 40px;
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     flex-wrap: wrap;
+     gap: 16px;
+   }
+   .specials-banner h2 {
+     font-family: 'Orbitron', monospace;
+     font-weight: 700;
+     font-size: 16px;
+     color: var(--neon-orange);
+     text-shadow: var(--glow-orange);
+     text-transform: uppercase;
+     letter-spacing: 2px;
+   }
+   .specials-banner p {
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 12px;
+     color: var(--text-muted);
+   }
+   .specials-timer {
+     font-family: 'VT323', monospace;
+     font-size: 28px;
+     color: var(--neon-yellow);
+     text-shadow: var(--glow-yellow);
+   }
+
+   /* ═══════════════════════════════════════════
+      ABOUT / INFO SECTION
+      ═══════════════════════════════════════════ */
+   .about-section {
+     margin-bottom: 48px;
+   }
+   .about-grid {
+     display: grid;
+     grid-template-columns: repeat(3, 1fr);
+     gap: 16px;
+   }
+   .about-card {
+     background: var(--bg-surface);
+     border: 1px solid var(--border);
+     padding: 24px 20px;
+     text-align: center;
+   }
+   .about-card-icon {
+     font-size: 32px;
+     margin-bottom: 12px;
+   }
+   .about-card h3 {
+     font-family: 'Orbitron', monospace;
+     font-weight: 700;
+     font-size: 12px;
+     color: var(--neon-cyan);
+     text-shadow: var(--glow-cyan);
+     text-transform: uppercase;
+     letter-spacing: 2px;
+     margin-bottom: 8px;
+   }
+   .about-card p {
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 11px;
+     color: var(--text-muted);
+     line-height: 1.6;
+   }
+
+   /* ═══════════════════════════════════════════
+      FOOTER
+      ═══════════════════════════════════════════ */
+   .site-footer {
+     border-top: 1px solid var(--border);
+     padding: 24px 48px;
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     flex-wrap: wrap;
+     gap: 16px;
+     position: relative;
+     z-index: 1;
+   }
+   .footer-copy {
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 11px;
+     color: var(--text-muted);
+   }
+   .footer-copy span {
+     color: var(--neon-cyan);
+     text-shadow: var(--glow-cyan);
+   }
+   .footer-links {
+     display: flex;
+     gap: 24px;
+   }
+   .footer-links a {
+     font-family: 'Share Tech Mono', monospace;
+     font-size: 11px;
+     color: var(--text-muted);
+     text-decoration: none;
+     text-transform: uppercase;
+     letter-spacing: 1px;
+     transition: color 0.2s;
+   }
+   .footer-links a:hover { color: var(--neon-cyan); }
+
+   /* ═══════════════════════════════════════════
+      RESPONSIVE
+      ═══════════════════════════════════════════ */
+   @media (max-width: 900px) {
+     .main-layout {
+       grid-template-columns: 1fr;
+     }
+     .sidebar {
+       position: static;
+       height: auto;
+       border-left: none;
+       border-top: 1px solid var(--border);
+     }
+     .content-area {
+       padding: 24px 20px;
+     }
+     .about-grid {
+       grid-template-columns: 1fr;
+     }
+     .nav-links { display: none; }
+   }
+ </style>
+ </head>
+ <body>
+
+ <!-- ═══════════════════════════════════════════
+      NAVIGATION
+      ═══════════════════════════════════════════ -->
+ <nav>
+   <div class="nav-logo">
+     <div class="nav-logo-icon">P</div>
+     <div class="nav-logo-text">PIZZA<span>TRIX</span></div>
+   </div>
+   <div class="nav-links">
+     <a href="#" class="active">Menu</a>
+     <a href="#">Specials</a>
+     <a href="#">Combo</a>
+     <a href="#">About</a>
+   </div>
+   <button class="nav-cta">▶ Order Now</button>
+ </nav>
+
+ <!-- ═══════════════════════════════════════════
+      MAIN LAYOUT — CONTENT + SIDEBAR
+      ═══════════════════════════════════════════ -->
+ <div class="main-layout">
+
+   <!-- LEFT CONTENT -->
+   <div class="content-area">
+
+     <!-- HERO -->
+     <div class="hero">
+       <div class="hero-badge">🔥 Live — Hot & Fresh 24/7</div>
+       <h1>
+         <span class="white">DROP THE</span><br>
+         <span class="cyan">PIZZA. IGNITE</span><br>
+         <span class="yellow">THE FLAVOR.</span>
+       </h1>
+       <p class="hero-sub">
+         Where Italian crust meets Mexican fire. Hand-tossed dough, molten cheese,
+         and a arsenal of toppings engineered for maximum impact. Welcome to the arena.
+       </p>
+       <div class="hero-actions">
+         <button class="btn-primary">• Build Your Pizza</button>
+         <button class="btn-secondary">View Full Menu</button>
+       </div>
+     </div>
+
+     <!-- COLOR BLOCK DIVIDER -->
+     <div class="color-block-row">
+       <span style="background:#00e5cc"></span>
+       <span style="background:#2563eb"></span>
+       <span style="background:#ff2d78"></span>
+       <span style="background:#a855f7"></span>
+       <span style="background:#ffe600"></span>
+       <span style="background:#ff6b00"></span>
+       <span style="background:#39ff14"></span>
+       <span style="background:#60a5fa"></span>
+     </div>
+
+     <!-- SPECIALS BANNER -->
+     <div class="specials-banner">
+       <div>
+         <h2>⚡ Turbo Combo — Limited Drop</h2>
+         <p>2 Pizzas + 1 Nachos + 2 Drinks — Only for the next</p>
+       </div>
+       <div class="specials-timer" id="countdown">02:34:17</div>
+     </div>
+
+     <!-- PIZZA MENU -->
+     <div class="section-header">Pizza Arena</div>
+     <div class="menu-grid">
+       <div class="menu-card cyan">
+         <div class="menu-card-emoji">🍕</div>
+         <div class="menu-card-name">Mega Pepperoni Blast</div>
+         <div class="menu-card-desc">Double pepperoni, mozzarella, tomato sauce, oregano. Classic overload.</div>
+         <div class="menu-card-bottom">
+           <span class="menu-card-price">$14.99</span>
+           <span class="menu-card-tag hot">HOT</span>
+         </div>
+       </div>
+       <div class="menu-card">
+         <div class="menu-card-emoji">🧀</div>
+         <div class="menu-card-name">Four Cheese Matrix</div>
+         <div class="menu-card-desc">Mozzarella, gorgonzola, parmesan, fontina. Cheese cascade mode.</div>
+         <div class="menu-card-bottom">
+           <span class="menu-card-price yellow">$16.49</span>
+           <span class="menu-card-tag">TOP PICK</span>
+         </div>
+       </div>
+       <div class="menu-card magenta">
+         <div class="menu-card-emoji">🌶️</div>
+         <div class="menu-card-name">Diablo Mexicana</div>
+         <div class="menu-card-desc">Jalapeños, chorizo, habanero sauce, red onion. Mexican fire unleashed.</div>
+         <div class="menu-card-bottom">
+           <span class="menu-card-price magenta">$17.99</span>
+           <span class="menu-card-tag hot">SPICY</span>
+         </div>
+       </div>
+       <div class="menu-card green">
+         <div class="menu-card-emoji">🥑</div>
+         <div class="menu-card-name">Guac Supreme</div>
+         <div class="menu-card-desc">Fresh guacamole, pico de gallo, black beans, cotija cheese.</div>
+         <div class="menu-card-bottom">
+           <span class="menu-card-price green">$15.99</span>
+           <span class="menu-card-tag new">NEW</span>
+         </div>
+       </div>
+       <div class="menu-card purple">
+         <div class="menu-card-emoji">🍗</div>
+         <div class="menu-card-name">BBQ Chicken Tacos</div>
+         <div class="menu-card-desc">Smoky BBQ chicken, cilantro, lime crema, onion rings. Fusion zone.</div>
+         <div class="menu-card-bottom">
+           <span class="menu-card-price purple">$16.49</span>
+           <span class="menu-card-tag">FUSION</span>
+         </div>
+       </div>
+       <div class="menu-card orange">
+         <div class="menu-card-emoji">🫔</div>
+         <div class="menu-card-name">Loaded Nacho Tower</div>
+         <div class="menu-card-desc">Triple-layer nachos with queso, salsa, sour cream, and jalapeños.</div>
+         <div class="menu-card-bottom">
+           <span class="menu-card-price orange">$12.99</span>
+           <span class="menu-card-tag hot">FIRE</span>
+         </div>
+       </div>
+     </div>
+
+     <!-- COLOR BLOCK DIVIDER -->
+     <div class="color-block-row">
+       <span style="background:#ff2d78"></span>
+       <span style="background:#ffe600"></span>
+       <span style="background:#39ff14"></span>
+       <span style="background:#00e5cc"></span>
+       <span style="background:#a855f7"></span>
+       <span style="background:#ff6b00"></span>
+       <span style="background:#2563eb"></span>
+     </div>
+
+     <!-- NACHOS & SIDES -->
+     <div class="section-header">Nachos & Sides</div>
+     <div class="menu-grid">
+       <div class="menu-card yellow">
+         <div class="menu-card-emoji">🌮</div>
+         <div class="menu-card-name">Street Tacos (3pc)</div>
+         <div class="menu-card-desc">Corn tortillas, carne asada, cilantro, onion, salsa verde.</div>
+         <div class="menu-card-bottom">
+           <span class="menu-card-price yellow">$9.99</span>
+           <span class="menu-card-tag">CLASSIC</span>
+         </div>
+       </div>
+       <div class="menu-card magenta">
+         <div class="menu-card-emoji">🥟</div>
+         <div class="menu-card-name">Empanadas x6</div>
+         <div class="menu-card-desc">Beef or chicken filled, fried golden. Served with chimichurri.</div>
+         <div class="menu-card-bottom">
+           <span class="menu-card-price magenta">$11.49</span>
+           <span class="menu-card-tag">SHARE</span>
+         </div>
+       </div>
+       <div class="menu-card green">
+         <div class="menu-card-emoji">🥗</div>
+         <div class="menu-card-name">Mexican Street Salad</div>
+         <div class="menu-card-desc">Elote-style corn, black beans, avocado, queso fresco, lime dressing.</div>
+         <div class="menu-card-bottom">
+           <span class="menu-card-price green">$10.99</span>
+           <span class="menu-card-tag new">NEW</span>
+         </div>
+       </div>
+       <div class="menu-card purple">
+         <div class="menu-card-emoji">🍟</div>
+         <div class="menu-card-name">Queso Fries</div>
+         <div class="menu-card-desc">Crispy fries drowning in queso fundido, salsa roja, crema.</div>
+         <div class="menu-card-bottom">
+           <span class="menu-card-price purple">$8.99</span>
+           <span class="menu-card-tag hot">ADDICTIVE</span>
+         </div>
+       </div>
+     </div>
+
+     <!-- ABOUT -->
+     <div class="about-section">
+       <div class="section-header">Why PizzaTrix?</div>
+       <div class="about-grid">
+         <div class="about-card">
+           <div class="about-card-icon">🔥</div>
+           <h3>Wood-Fired</h3>
+           <p>900°F stone oven. 90 seconds. Crispy crust, charred edges, molten center. Every single time.</p>
+         </div>
+         <div class="about-card">
+           <div class="about-card-icon">🌶️</div>
+           <h3>Mexican Fire</h3>
+           <p>House-made salsas from jalapeño to habanero. Chipotle aioli, tomatillo verde, roasted tomatillo.</p>
+         </div>
+         <div class="about-card">
+           <div class="about-card-icon">⚡</div>
+           <h3>Speed Drop</h3>
+           <p>Order-to-door in 25 minutes or it's free. GPS-tracked. Real-time updates. Zero excuses.</p>
+         </div>
+       </div>
+     </div>
+
+   </div>
+
+   <!-- RIGHT SIDEBAR -->
+   <div class="sidebar">
+
+     <!-- Level Card -->
+     <div class="level-card">
+       <div class="level-card-top">
+         <span class="level-card-title">Current Mode</span>
+         <span class="badge-live">● LIVE</span>
+       </div>
+       <div class="level-number">#07</div>
+       <div class="level-mode">🔥 Turbo Lunch Rush</div>
+       <div class="progress-track">
+         <div class="progress-fill" style="width: 72%"></div>
+       </div>
+     </div>
+
+     <!-- Stats Grid -->
+     <div class="stat-grid">
+       <div class="stat-card">
+         <div class="stat-icon">🍕</div>
+         <div class="stat-label">Pizzas Today</div>
+         <div class="stat-value cyan" id="pizzaCount">247</div>
+         <div class="stat-sub">+34 from yesterday</div>
+       </div>
+       <div class="stat-card">
+         <div class="stat-icon">🔥</div>
+         <div class="stat-label">Active Orders</div>
+         <div class="stat-value yellow" id="activeOrders">18</div>
+         <div class="stat-sub">Avg 22 min delivery</div>
+       </div>
+       <div class="stat-card">
+         <div class="stat-icon">⭐</div>
+         <div class="stat-label">Rating</div>
+         <div class="stat-value green">4.9</div>
+         <div class="stat-sub">1,247 reviews</div>
+       </div>
+       <div class="stat-card">
+         <div class="stat-icon">🌮</div>
+         <div class="stat-label">Tacos Sold</div>
+         <div class="stat-value purple" id="tacoCount">891</div>
+         <div class="stat-sub">This month</div>
+       </div>
+       <div class="stat-card">
+         <div class="stat-icon">🧀</div>
+         <div class="stat-label">Cheese Used</div>
+         <div class="stat-value orange">340<span style="font-size:18px">kg</span></div>
+         <div class="stat-sub">Melted & glorious</div>
+       </div>
+       <div class="stat-card">
+         <div class="stat-icon">🚀</div>
+         <div class="stat-label">Speed</div>
+         <div class="stat-value cyan">25<span style="font-size:18px">min</span></div>
+         <div class="stat-sub">Door to door</div>
+       </div>
+     </div>
+
+     <!-- Promo Card -->
+     <div class="promo-card">
+       <h3>🎮 Secret Combo Code</h3>
+       <p>Use this code at checkout for 20% off your first order</p>
+       <div class="promo-code">PIZZA-TRIX</div>
+     </div>
+
+   </div>
+
+ </div>
+
+ <!-- ═══════════════════════════════════════════
+      BOTTOM STATUS BAR
+      ═══════════════════════════════════════════ -->
+ <div class="status-bar">
+   <span class="keyword-cyan">247 PIZZAS</span>
+   <span class="bullet">●</span>
+   <span class="keyword-yellow">TURBO MODE</span>
+   <span class="bullet">●</span>
+   <span class="keyword-green">25 MIN DELIVERY</span>
+   <span class="bullet">●</span>
+   <span class="keyword-magenta">WOOD-FIRED 900°F</span>
+   <span class="bullet">●</span>
+   <span class="keyword-orange">MEXICAN FIRE</span>
+   <span class="bullet">●</span>
+   <span># ORDER ACTIVE</span>
+ </div>
+
+ <!-- ═══════════════════════════════════════════
+      FOOTER
+      ═══════════════════════════════════════════ -->
+ <footer class="site-footer">
+   <div class="footer-copy">© 2026 <span>PIZZATRIX</span> — Drop & Eat. All rights reserved.</div>
+   <div class="footer-links">
+     <a href="#">Menu</a>
+     <a href="#">Locations</a>
+     <a href="#">Careers</a>
+     <a href="#">Contact</a>
+   </div>
+ </footer>
+
+ <!-- ═══════════════════════════════════════════
+      BRICK STREAM GENERATOR + LIVE COUNTERS
+      ═══════════════════════════════════════════ -->
+ <script>
+   // ── Falling brick streams ──
+   const colors = ['#00e5cc','#ff2d78','#ffe600','#a855f7','#ff6b00','#39ff14','#60a5fa','#2563eb'];
+   for (let i = 0; i < 20; i++) {
+     const brick = document.createElement('div');
+     brick.className = 'brick-stream';
+     brick.style.left = Math.random() * 100 + '%';
+     brick.style.background = colors[Math.floor(Math.random() * colors.length)];
+     brick.style.animationDuration = (6 + Math.random() * 10) + 's';
+     brick.style.animationDelay = (Math.random() * 8) + 's';
+     brick.style.width = (12 + Math.random() * 14) + 'px';
+     brick.style.height = brick.style.width;
+     document.body.appendChild(brick);
+   }
+
+   // ── Live stat counters (simulated) ──
+   function jitter(el, base, variance) {
+     const v = base + Math.floor(Math.random() * variance) - Math.floor(variance / 2);
+     el.textContent = v;
+   }
+
+   setInterval(() => jitter(document.getElementById('pizzaCount'), 247, 5), 4000);
+   setInterval(() => jitter(document.getElementById('activeOrders'), 18, 6), 3000);
+   setInterval(() => jitter(document.getElementById('tacoCount'), 891, 10), 5000);
+
+   // ── Countdown timer ──
+   let totalSeconds = 2 * 3600 + 34 * 60 + 17;
+   const countdownEl = document.getElementById('countdown');
+   setInterval(() => {
+     totalSeconds--;
+     if (totalSeconds < 0) totalSeconds = 3 * 3600;
+     const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+     const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+     const s = String(totalSeconds % 60).padStart(2, '0');
+     countdownEl.textContent = h + ':' + m + ':' + s;
+   }, 1000);
+ </script>
+
+ </body>
+ </html>
